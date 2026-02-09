@@ -4,6 +4,7 @@ use std::io::{self, Write};
 use std::fs;
 use std::env;
 use std::path::PathBuf;
+use std::os::unix::fs::PermissionsExt;
 
 const EXIT_CMD: &str = "exit";
 const ECHO_CMD: &str = "echo";
@@ -11,6 +12,15 @@ const TYPE_CMD: &str = "type";
 
 const SHELL_BUILTINS: &[&str] = &[EXIT_CMD, ECHO_CMD, TYPE_CMD];
 
+fn is_executable(path: &str) -> bool {
+    if let Ok(metadata) = fs::metadata(path) {
+        let permissions = metadata.permissions();
+        // On Unix-like systems, check if the owner's executable bit is set
+        permissions.mode() & 0o001 != 0
+    } else {
+        false
+    }
+}
 
 fn repl_loop() {
     loop {
@@ -71,7 +81,7 @@ fn check_type(command: &str) {
                         .file_name()
                         .and_then(|s| s.to_str())
                         .unwrap_or("");
-                    if filename.split(".").next() == Some(command) {
+                    if filename.split(".").next() == Some(command) && is_executable(&path_as_string) {
                         println!("{} is {}", command, path_as_string);
                         found = true;
                     }
