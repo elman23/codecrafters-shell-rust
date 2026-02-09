@@ -62,7 +62,6 @@ fn repl_loop() {
 fn check_type(command: &str) {
     match env::var("PATH") {
         Ok(path) => {
-            //println!("PATH: {}", path);
             let dirs = path.split(":");
             let mut found = false;
             for dir in dirs {
@@ -84,7 +83,11 @@ fn check_type(command: &str) {
                     if filename.split(".").next() == Some(command) && is_executable(&path_as_string) {
                         println!("{} is {}", command, path_as_string);
                         found = true;
+                        break;
                     }
+                }
+                if found {
+                    break;
                 }
             }
             if !found {
