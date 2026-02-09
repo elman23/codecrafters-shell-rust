@@ -92,7 +92,7 @@ fn check_type(command: &str) {
                 }
             }
             if !found {
-                println!("{}: command not found", command);
+                println!("{}: not found", command);
             }                
         },
         Err(e) => {
