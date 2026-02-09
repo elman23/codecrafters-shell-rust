@@ -15,11 +15,12 @@ fn repl_loop() {
         io::stdin().read_line(&mut command).unwrap();
         command = String::from(command.trim());
 
-        // Exit builtin.
+        // Exit command.
         if command == String::from(EXIT_CMD) {
             break;
         }
 
+        // Echo command.
         if command.starts_with(ECHO_CMD) {
             let arguments = &command[5..];
             println!("{}", arguments);
