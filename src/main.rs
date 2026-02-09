@@ -72,17 +72,17 @@ fn check_type(command: &str) {
                         .and_then(|s| s.to_str())
                         .unwrap_or("");
                     if filename.split(".").next() == Some(command) {
-                        println!("{} is {}", command, path_as_string);
+                        println!("$ {} is {}", command, path_as_string);
                         found = true;
                     }
                 }
             }
             if !found {
-                println!("{}: not found", command);
+                println!("$ {}: not found", command);
             }                
         },
         Err(e) => {
-            println!("Couldn't read PATH: {}", e);
+            println!("$ Couldn't read PATH: {}", e);
         },
     }
 }
