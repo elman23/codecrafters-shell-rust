@@ -1,6 +1,9 @@
 #[allow(unused_imports)]
 use std::io::{self, Write};
 
+const EXIT_CMD: &str = "exit";
+const ECHO_CMD: &str = "echo ";
+
 fn repl_loop() {
     loop {
         // Display prompt.
@@ -13,8 +16,14 @@ fn repl_loop() {
         command = String::from(command.trim());
 
         // Exit builtin.
-        if command == String::from("exit") {
+        if command == String::from(EXIT_CMD) {
             break;
+        }
+
+        if command.starts_with(ECHO_CMD) {
+            let arguments = &command[5..];
+            println!("{}", arguments);
+            continue;
         }
 
         println!("{}: command not found", command);
