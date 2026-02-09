@@ -1,6 +1,10 @@
 #[allow(unused_imports)]
 use std::io::{self, Write};
 
+use std::fs;
+use std::env;
+use std::path::PathBuf;
+
 const EXIT_CMD: &str = "exit";
 const ECHO_CMD: &str = "echo";
 const TYPE_CMD: &str = "type";
@@ -36,7 +40,7 @@ fn repl_loop() {
             if SHELL_BUILTINS.contains(&arguments) {
                 println!("{} is a shell builtin", arguments);
             } else {
-                println!("{}: not found", arguments);
+                check_type(arguments);
             }
             continue;
         }
@@ -45,7 +49,47 @@ fn repl_loop() {
     }
 }
 
-fn main() {
+fn check_type(command: &str) {
+    match env::var("PATH") {
+        Ok(path) => {
+            //println!("PATH: {}", path);
+            let dirs = path.split(":");
+            let mut found = false;
+            for dir in dirs {
+                let entries: Vec<PathBuf> = fs::read_dir(dir)
+                    .unwrap()
+                    .map(|res| res.map(|e| e.path()))
+                    .collect::<Result<Vec<_>, io::Error>>()
+                    .unwrap();
+
+                let mut entries: Vec<PathBuf> = entries;
+                entries.sort();
+
+                for entry in entries {
+                    let path_as_string = entry.to_string_lossy();
+                    let filename = entry
+                        .file_name()
+                        .and_then(|s| s.to_str())
+                        .unwrap_or("");
+                    if filename.split(".").next() == Some(command) {
+                        println!("{} is {}", command, path_as_string);
+                        found = true;
+                    }
+                }
+            }
+            if !found {
+                println!("{}: not found", command);
+            }                
+        },
+        Err(e) => {
+            println!("Couldn't read PATH: {}", e);
+        },
+    }
+}
+
+fn main() -> io::Result<()> {
     // Shell's infinite REPL loop.
     repl_loop();
+
+    Ok(())
 }
