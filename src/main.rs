@@ -1,8 +1,7 @@
 #[allow(unused_imports)]
 use std::io::{self, Write};
 
-fn main() {
-    // Shell's infinite loop.
+fn repl_loop() {
     loop {
         // Display prompt.
         print!("$ ");
@@ -20,4 +19,9 @@ fn main() {
 
         println!("{}: command not found", command);
     }
+}
+
+fn main() {
+    // Shell's infinite REPL loop.
+    repl_loop();
 }
