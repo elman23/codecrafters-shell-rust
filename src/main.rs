@@ -12,18 +12,13 @@ const EXIT_CMD: &str = "exit";
 const ECHO_CMD: &str = "echo";
 const TYPE_CMD: &str = "type";
 const PROMPT: &str = "$ ";
+const PWD_CMD: &str = "pwd";
 
 const SHELL_BUILTINS: &[&str] = &[EXIT_CMD, ECHO_CMD, TYPE_CMD];
 
-// fn is_executable(path: &str) -> bool {
-//     if let Ok(metadata) = fs::metadata(path) {
-//         let permissions = metadata.permissions();
-//         // On Unix-like systems, check if the owner's executable bit is set
-//         permissions.mode() & 0o001 != 0
-//     } else {
-//         false
-//     }
-// }
+fn print_pwd() {
+    println!("{:?}", env::current_dir());
+}
 
 fn is_executable(path: &std::path::Path) -> std::io::Result<bool> {
     let metadata = fs::metadata(path)?;
@@ -78,6 +73,11 @@ fn repl_loop() {
             continue;
         }
 
+        // Pwd command.
+        if command == String::from(PWD_CMD) {
+            print_pwd();
+        }
+
         // Execute command.
         exec_command(&command);
     }
@@ -113,45 +113,6 @@ fn check_type(command: &str) {
     if !found {
         println!("{}: not found", command);
     }  
-
-    // match env::var("PATH") {
-    //     Ok(path) => {
-    //         let dirs = path.split(":"); // TODO: Use path separation.
-    //         let mut found = false;
-    //         for dir in dirs {
-    //             let entries: Vec<PathBuf> = fs::read_dir(dir)
-    //                 .unwrap()
-    //                 .map(|res| res.map(|e| e.path()))
-    //                 .collect::<Result<Vec<_>, io::Error>>()
-    //                 .unwrap();
-
-    //             let mut entries: Vec<PathBuf> = entries;
-    //             entries.sort();
-
-    //             for entry in entries {
-    //                 let path_as_string = entry.to_string_lossy();
-    //                 let filename = entry
-    //                     .file_name()
-    //                     .and_then(|s| s.to_str())
-    //                     .unwrap_or("");
-    //                 if filename.split(".").next() == Some(command) && is_executable(&path_as_string) {
-    //                     println!("{} is {}", command, path_as_string);
-    //                     found = true;
-    //                     break;
-    //                 }
-    //             }
-    //             if found {
-    //                 break;
-    //             }
-    //         }
-    //         if !found {
-    //             println!("{}: not found", command);
-    //         }                
-    //     },
-    //     Err(e) => {
-    //         println!("Couldn't read PATH: {}", e);
-    //     },
-    // }
 }
 
 fn exec_command(command: &str) {
@@ -196,54 +157,6 @@ fn exec_command(command: &str) {
     if !found {
         println!("{}: not found", command);
     }  
-
-    // match env::var("PATH") {
-    //     Ok(path) => {
-    //         let dirs = path.split(":");
-    //         let mut found = false;
-    //         for dir in dirs {
-    //             let entries: Vec<PathBuf> = fs::read_dir(dir)
-    //                 .unwrap()
-    //                 .map(|res| res.map(|e| e.path()))
-    //                 .collect::<Result<Vec<_>, io::Error>>()
-    //                 .unwrap();
-
-    //             let mut entries: Vec<PathBuf> = entries;
-    //             entries.sort();
-
-    //             for entry in entries {
-    //                 let path_as_string = entry.to_string_lossy();
-    //                 let filename = entry
-    //                     .file_name()
-    //                     .and_then(|s| s.to_str())
-    //                     .unwrap_or("");
-    //                 let executable = command.split_whitespace().next().expect("");
-    //                 if filename.split(".").next() == Some(executable) && is_executable(&path_as_string) {
-    //                     found = true;
-    //                     let mut command_split = command.split_whitespace();
-    //                     let command_name = command_split.next().unwrap_or("");
-    //                     let command_args: Vec<_> = command_split.collect();
-    //                     Command::new(command_name)
-    //                         .args(command_args)
-    //                         .spawn()
-    //                         .expect("Command failed to start")
-    //                         .wait_with_output()
-    //                         .expect("Failed to wait on command");
-    //                     break;
-    //                 }
-    //             }
-    //             if found {
-    //                 break;
-    //             }
-    //         }
-    //         if !found {
-    //             println!("{}: not found", command);
-    //         }                
-    //     },
-    //     Err(e) => {
-    //         println!("Couldn't read PATH: {}", e);
-    //     },
-    // }
 }
 
 fn main() {
