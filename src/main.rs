@@ -121,7 +121,7 @@ fn exec_command(command: &str) {
     let path_var = env::var_os("PATH").expect("PATH variable not set!");
     let paths: Vec<PathBuf> = env::split_paths(&path_var).collect();
 
-    let command_path = PathBuf::from(command);
+    let command_path = PathBuf::from(command.split_whitespace().next().unwrap());
     let command_n = command_path.file_stem().unwrap();
 
     let mut found = false;
