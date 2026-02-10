@@ -76,6 +76,7 @@ fn repl_loop() {
         // Pwd command.
         if command == String::from(PWD_CMD) {
             print_pwd();
+            continue;
         }
 
         // Execute command.
@@ -131,15 +132,12 @@ fn exec_command(command: &str) {
         entries.sort();
 
         for entry in entries {
-            println!("Entry: {:?}", entry);
             let filename = entry.file_stem().unwrap();
             if filename == OsStr::new(filename) && is_executable(&entry.as_path()).expect("Failed to check execution permissions!") {
                 found = true;
                 let mut command_split = command.split_whitespace();
                 let command_name = command_split.next().unwrap_or("");
                 let command_args: Vec<_> = command_split.collect();
-                println!("Command: {:?}", command_name);
-                println!("Args: {:?}", command_args);
                 Command::new(command_name)
                     .args(command_args)
                     .spawn()
