@@ -91,10 +91,11 @@ fn check_type(command: &str) {
     let mut found = false;
 
     for path in paths {
-        let mut files: Vec<PathBuf> = get_directory_content(&path);
+        let files: Vec<PathBuf> = get_directory_content(&path);
         for file in files {
             let filename = file.file_stem();
-            if filename == Some(OsStr::new(command)) && is_executable(&file.as_path()).expect("Failed to check execution permissions!") {
+            let executable = is_executable(&file.as_path()).expect("Failed to check execution permissions!");
+            if filename == Some(OsStr::new(command)) && executable {
                 println!("{} is {}", command, file.to_str().unwrap());
                 found = true;
                 break;
@@ -126,22 +127,23 @@ fn exec_command(command: &str) {
     let paths: Vec<PathBuf> = env::split_paths(&path_var).collect();
 
     let command_path = PathBuf::from(command.split_whitespace().next().unwrap());
-    let command_n = command_path.file_stem().unwrap();
+    let command_name = command_path.file_stem().unwrap();
 
     let mut found = false;
 
     for path in paths {
-        let mut files: Vec<PathBuf> = get_directory_content(&path);
+        let files: Vec<PathBuf> = get_directory_content(&path);
 
         for file in files {
             let filename = file.file_stem().unwrap();
-            if filename == OsStr::new(command_n) && is_executable(&file.as_path()).expect("Failed to check execution permissions!") {
+            let executable = is_executable(&file.as_path()).expect("Failed to check execution permissions!");
+            if filename == OsStr::new(command_name) && executable {
                 found = true;
                 let mut command_split = command.split_whitespace();
-                let command_name = command_split.next().unwrap_or("");
-                let command_args: Vec<_> = command_split.collect();
-                Command::new(command_name)
-                    .args(command_args)
+                let name = command_split.next().unwrap_or("");
+                let args: Vec<_> = command_split.collect();
+                Command::new(name)
+                    .args(args)
                     .spawn()
                     .expect("Command failed to start")
                     .wait_with_output()
