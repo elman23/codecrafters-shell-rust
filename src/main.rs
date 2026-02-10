@@ -14,7 +14,7 @@ const TYPE_CMD: &str = "type";
 const PROMPT: &str = "$ ";
 const PWD_CMD: &str = "pwd";
 
-const SHELL_BUILTINS: &[&str] = &[EXIT_CMD, ECHO_CMD, TYPE_CMD];
+const SHELL_BUILTINS: &[&str] = &[EXIT_CMD, ECHO_CMD, TYPE_CMD, PWD_CMD];
 
 fn print_pwd() {
     println!("{:?}", env::current_dir());
