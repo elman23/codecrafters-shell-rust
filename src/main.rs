@@ -91,17 +91,11 @@ fn check_type(command: &str) {
     let mut found = false;
 
     for path in paths {
-        let mut entries: Vec<PathBuf> = fs::read_dir(path)
-            .unwrap()
-            .map(|res| res.map(|e| e.path()))
-            .collect::<Result<Vec<_>, io::Error>>()
-            .unwrap();
-        entries.sort();
-
-        for entry in entries {
-            let filename = entry.file_stem();
-            if filename == Some(OsStr::new(command)) && is_executable(&entry.as_path()).expect("Failed to check execution permissions!") {
-                println!("{} is {}", command, entry.to_str().unwrap());
+        let mut files: Vec<PathBuf> = get_directory_content(&path);
+        for file in files {
+            let filename = file.file_stem();
+            if filename == Some(OsStr::new(command)) && is_executable(&file.as_path()).expect("Failed to check execution permissions!") {
+                println!("{} is {}", command, file.to_str().unwrap());
                 found = true;
                 break;
             }
@@ -116,6 +110,16 @@ fn check_type(command: &str) {
     }  
 }
 
+fn get_directory_content(path: &PathBuf) -> Vec<PathBuf> {
+    let mut files: Vec<PathBuf> = fs::read_dir(path)
+        .unwrap()
+        .map(|res| res.map(|e| e.path()))
+        .collect::<Result<Vec<_>, io::Error>>()
+        .unwrap();
+    files.sort();
+    files
+}
+
 fn exec_command(command: &str) {
 
     let path_var = env::var_os("PATH").expect("PATH variable not set!");
@@ -127,16 +131,11 @@ fn exec_command(command: &str) {
     let mut found = false;
 
     for path in paths {
-        let mut entries: Vec<PathBuf> = fs::read_dir(path)
-            .unwrap()
-            .map(|res| res.map(|e| e.path()))
-            .collect::<Result<Vec<_>, io::Error>>()
-            .unwrap();
-        entries.sort();
+        let mut files: Vec<PathBuf> = get_directory_content(&path);
 
-        for entry in entries {
-            let filename = entry.file_stem().unwrap();
-            if filename == OsStr::new(command_n) && is_executable(&entry.as_path()).expect("Failed to check execution permissions!") {
+        for file in files {
+            let filename = file.file_stem().unwrap();
+            if filename == OsStr::new(command_n) && is_executable(&file.as_path()).expect("Failed to check execution permissions!") {
                 found = true;
                 let mut command_split = command.split_whitespace();
                 let command_name = command_split.next().unwrap_or("");
