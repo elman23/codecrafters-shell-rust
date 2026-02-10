@@ -17,7 +17,7 @@ const PWD_CMD: &str = "pwd";
 const SHELL_BUILTINS: &[&str] = &[EXIT_CMD, ECHO_CMD, TYPE_CMD, PWD_CMD];
 
 fn print_pwd() {
-    println!("{}", env::current_dir().unwrap().to_str());
+    println!("{}", env::current_dir().unwrap().to_str().unwrap());
 }
 
 fn is_executable(path: &std::path::Path) -> std::io::Result<bool> {
