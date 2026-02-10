@@ -101,7 +101,7 @@ fn check_type(command: &str) {
         for entry in entries {
             let filename = entry.file_stem();
             if filename == Some(OsStr::new(command)) && is_executable(&entry.as_path()).expect("Failed to check execution permissions!") {
-                println!("{} is {:?}", command, entry);
+                println!("{} is {}", command, entry.to_str());
                 found = true;
                 break;
             }
