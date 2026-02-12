@@ -4,6 +4,7 @@ use std::io::{self, Write};
 use std::fs;
 use std::env;
 use std::path::PathBuf;
+use std::path::Path;
 use std::os::unix::fs::PermissionsExt;
 use std::process::Command;
 use std::ffi::OsStr;
@@ -13,11 +14,21 @@ const ECHO_CMD: &str = "echo";
 const TYPE_CMD: &str = "type";
 const PROMPT: &str = "$ ";
 const PWD_CMD: &str = "pwd";
+const CD_CMD: &str = "cd";
 
-const SHELL_BUILTINS: &[&str] = &[EXIT_CMD, ECHO_CMD, TYPE_CMD, PWD_CMD];
+const SHELL_BUILTINS: &[&str] = &[EXIT_CMD, ECHO_CMD, TYPE_CMD, PWD_CMD, CD_CMD];
 
 fn print_pwd() {
     println!("{}", env::current_dir().unwrap().to_str().unwrap());
+}
+
+fn dir_exists(dir: &str) -> bool {
+    let dir_path = Path::new(dir);
+    return dir_path.exists()
+}
+
+fn change_dir(dir: &str) {
+    let _ = std::env::set_current_dir(dir);
 }
 
 fn is_executable(path: &std::path::Path) -> std::io::Result<bool> {
@@ -44,6 +55,16 @@ fn handle_type_command(command: &str) {
         println!("{} is a shell builtin", arguments);
     } else {
         check_type(arguments);
+    }
+}
+
+fn handle_cd_command(command: &str) {
+    let arguments = &command[(CD_CMD.len() + 1)..];
+    let dir = arguments.split_whitespace().next().unwrap();
+    if dir_exists(dir) {
+        change_dir(dir);
+    } else {
+        println!("cd: {}: No such file or directory.", dir)
     }
 }
 
@@ -76,6 +97,12 @@ fn repl_loop() {
         // Pwd command.
         if command == String::from(PWD_CMD) {
             print_pwd();
+            continue;
+        }
+
+        // Cd command.
+        if command.starts_with(&*format!("{} ", &CD_CMD)) {
+            handle_cd_command(&command);
             continue;
         }
 
