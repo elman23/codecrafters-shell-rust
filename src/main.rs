@@ -62,6 +62,15 @@ fn handle_type_command(command: &str) {
 fn handle_cd_command(command: &str) {
     let arguments = &command[(CD_CMD.len() + 1)..];
     let dir = arguments.split_whitespace().next().unwrap();
+
+    // The "~" special case.
+    if dir == "~" {
+        let home_dir = env::var_os("HOME").expect("HOME variable not set!");
+        let home_dir = home_dir.to_str().unwrap();
+        change_dir(home_dir);
+        return;
+    }
+
     if dir_exists(dir) {
         change_dir(dir);
     } else {
