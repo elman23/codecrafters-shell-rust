@@ -16,6 +16,7 @@ const PROMPT: &str = "$ ";
 const PWD_CMD: &str = "pwd";
 const CD_CMD: &str = "cd";
 
+// TODO: Improve. This requires that each new built-in command shall be added manually.
 const SHELL_BUILTINS: &[&str] = &[EXIT_CMD, ECHO_CMD, TYPE_CMD, PWD_CMD, CD_CMD];
 
 fn print_pwd() {
@@ -64,7 +65,7 @@ fn handle_cd_command(command: &str) {
     if dir_exists(dir) {
         change_dir(dir);
     } else {
-        println!("cd: {}: No such file or directory.", dir)
+        println!("cd: {}: No such file or directory", dir)
     }
 }
 
