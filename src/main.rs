@@ -15,7 +15,6 @@ const TYPE_CMD: &str = "type";
 const PROMPT: &str = "$ ";
 const PWD_CMD: &str = "pwd";
 const CD_CMD: &str = "cd";
-const CAT_CMD: &str = "cat";
 
 // TODO: Improve. This requires that each new built-in command shall be added manually.
 const SHELL_BUILTINS: &[&str] = &[EXIT_CMD, ECHO_CMD, TYPE_CMD, PWD_CMD, CD_CMD];
@@ -91,7 +90,7 @@ fn repl_loop() {
         io::stdout().flush().unwrap();
         
         // Wait for user input.
-        let mut command = read_command();
+        let command = read_command();
 
         // Exit command.
         if command == String::from(EXIT_CMD) {
@@ -120,10 +119,6 @@ fn repl_loop() {
         if command.starts_with(&*format!("{} ", &CD_CMD)) {
             handle_cd_command(&command);
             continue;
-        }
-
-        if command.starts_with(&*format!("{} ", &CAT_CMD)) {
-            command = command.replace("'", "");
         }
 
         // Execute command.
@@ -186,15 +181,33 @@ fn exec_command(command: &str) {
             let executable = is_executable(&file.as_path()).expect("Failed to check execution permissions!");
             if filename == OsStr::new(command_name) && executable {
                 found = true;
+
                 let mut command_split = command.split_whitespace();
                 let name = command_split.next().unwrap_or("");
-                let args: Vec<_> = command_split.collect();
+
+                let mut args: Vec<String> = if name == "cat" {
+                    command
+                        .split_once(' ')
+                        .map(|(_, after)| vec![after.to_string()])
+                        .unwrap_or_default()
+                } else {
+                    command_split.map(|s| s.to_string()).collect()
+                };
+
+                // Remove single quotes
+                for arg in &mut args {
+                    if arg.contains('\'') {
+                        *arg = arg.replace('\'', "");
+                    }
+                }
+
                 Command::new(name)
-                    .args(args)
+                    .args(&args)
                     .spawn()
                     .expect("Command failed to start")
                     .wait_with_output()
                     .expect("Failed to wait on command");
+
                 break;
             }
         }
