@@ -51,7 +51,11 @@ fn handle_echo_command(command: &str) {
     if !arguments.contains("'") {
         arguments = arguments.split_whitespace().collect::<Vec<_>>().join(" ");
     }
-    let arguments = &arguments.replace("'", "");
+    let arguments = if arguments.contains('\"') {
+        &arguments.replace('\"', "")
+    } else {
+        &arguments.replace('\'', "")
+    };
     println!("{}", arguments);
 }
 
@@ -163,14 +167,14 @@ fn get_directory_content(path: &PathBuf) -> Vec<PathBuf> {
     files
 }
 
-fn split_single_quoted(input: &str) -> Vec<String> {
+fn split_char(ch: char, input: &str) -> Vec<String> {
     let mut result = Vec::new();
     let mut in_quotes = false;
     let mut current = String::new();
 
     for c in input.chars() {
         match c {
-            '\'' => {
+            ch => {
                 if in_quotes {
                     result.push(current.clone());
                     current.clear();
@@ -207,35 +211,19 @@ fn exec_command(command: &str) {
             if filename == OsStr::new(command_name) && executable {
                 found = true;
 
-                // let mut command_split = command.split_whitespace();
-                // let name = command_split.next().unwrap_or("");
-
-                // let mut args: Vec<String> = if name == "cat" {
-                //     command
-                //         .split_once(' ')
-                //         .map(|(_, after)| vec![after.to_string()])
-                //         .unwrap_or_default()
-                // } else {
-                //     command_split.map(|s| s.to_string()).collect()
-                // };
-
-                // for arg in &mut args {
-                //     if arg.contains('\'') {
-                //         *arg = arg.replace('\'', "");
-                //     }
-                // }
-
-                // New implementation.
                 let (name, args) = command.split_once(' ').unwrap();
-                let args = if args.contains('\'') {
-                    split_single_quoted(args)
+
+                let args = if args.contains('\"') {
+                    split_char('\"', args)
+                } else if args.contains('\'') {
+                    split_char('\'', args)
                 } else {
                     args.split_whitespace().map(|s| s.to_string()).collect()
                 };
-                
-                // println!("Command: {}", name);          // TODO: Remove, debug only.
-                // println!("Arguments: {:?}", args);      // TODO: Remove, debug only.
 
+                println!("Command: {}", name);
+                println!("Arguments: {:?}", args);
+                
                 Command::new(name)
                     .args(&args)
                     .spawn()
