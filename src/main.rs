@@ -245,8 +245,8 @@ fn exec_command(command: &str) {
                     args.split_whitespace().map(|s| s.to_string()).collect()
                 };
 
-                println!("Command: {}", name);
-                println!("Arguments: {:?}", args);
+                // println!("Command: {}", name);
+                // println!("Arguments: {:?}", args);
                 
                 Command::new(name)
                     .args(&args)
