@@ -227,7 +227,11 @@ fn exec_command(command: &str) {
 
                 // New implementation.
                 let (name, args) = command.split_once(' ').unwrap();
-                let args = split_single_quoted(args);
+                let args = if args.contains('\'') {
+                    split_single_quoted(args)
+                } else {
+                    args.split_whitespace().map(|s| s.to_string()).collect()
+                }
                 
                 // println!("Command: {}", name);          // TODO: Remove, debug only.
                 // println!("Arguments: {:?}", args);      // TODO: Remove, debug only.
