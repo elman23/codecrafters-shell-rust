@@ -48,15 +48,23 @@ fn read_command() -> String {
 fn handle_echo_command(command: &str) {
     let arguments = &command[(ECHO_CMD.len() + 1)..];
     let mut arguments = String::from(arguments);
-    if !arguments.contains('\'') && !arguments.contains('\"') {
-        arguments = arguments.split_whitespace().collect::<Vec<_>>().join(" ");
-    }
+    // if !arguments.contains('\'') && !arguments.contains('\"') {
+        // arguments = arguments.split_whitespace().collect::<Vec<_>>().join(" ");
+    // }
     let arguments = if arguments.contains('\"') {
-        &arguments.replace('\"', "")
+        // &arguments.replace('\"', "")
+        println!("With double quotes");
+        split_char('\"', &arguments)
+    } else if arguments.contains('\'') {
+        // &arguments.replace('\'', "")
+        println!("With single quotes");
+        split_char('\'', &arguments)
     } else {
-        &arguments.replace('\'', "")
+        println!("Without quotes");
+        arguments.split_whitespace().map(|s| String::from(s)).collect::<Vec<_>>()
     };
-    println!("{}", arguments);
+    println!("Arguments: {:?}", arguments);
+    println!("{}", arguments.join(" "));
 }
 
 fn handle_type_command(command: &str) {
@@ -173,24 +181,20 @@ fn split_char(ch: char, input: &str) -> Vec<String> {
     let mut current = String::new();
 
     for c in input.chars() {
-        match c {
-            ch => {
-                if in_quotes {
-                    result.push(current.clone());
-                    current.clear();
-                }
-                in_quotes = !in_quotes;
+        if c == ch {
+            if in_quotes {
+                // Closing quote → push collected segment
+                result.push(std::mem::take(&mut current));
             }
-            _ => {
-                if in_quotes {
-                    current.push(c);
-                }
-            }
+            in_quotes = !in_quotes;
+        } else if in_quotes {
+            current.push(c);
         }
     }
 
     result
 }
+
 
 fn exec_command(command: &str) {
 
