@@ -48,25 +48,46 @@ fn read_command() -> String {
 fn handle_echo_command(command: &str) {
     let arguments = &command[(ECHO_CMD.len() + 1)..];
     let mut arguments = String::from(arguments);
-    // if !arguments.contains('\'') && !arguments.contains('\"') {
-        // arguments = arguments.split_whitespace().collect::<Vec<_>>().join(" ");
-    // }
     arguments = arguments.replace("\"\"", "");
     arguments = arguments.replace("''", "");
-    let arguments = if arguments.contains('\"') {
-        // &arguments.replace('\"', "")
-        // println!("With double quotes");
-        clean_char('\"', &arguments)
-    } else if arguments.contains('\'') {
-        // &arguments.replace('\'', "")
-        // println!("With single quotes");
-        clean_char('\'', &arguments)
-    } else {
-        // println!("Without quotes");
-        arguments.split_whitespace().map(|s| String::from(s)).collect::<Vec<_>>()
-    };
-    // println!("Arguments: {:?}", arguments);
-    println!("{}", arguments.join(" "));
+    // let arguments = if arguments.contains('\"') {
+    //     clean_char('\"', &arguments)
+    // } else if arguments.contains('\'') {
+    //     clean_char('\'', &arguments)
+    // } else {
+    //     arguments.split_whitespace().map(|s| String::from(s)).collect::<Vec<_>>()
+    // };
+    let arguments = parse_echo_args(&arguments);
+    // println!("{}", arguments.join(" "));
+    println!("{}", arguments);
+}
+
+fn parse_echo_args(input: &str) -> String {
+    let mut in_double_quotes = false;
+    let mut in_single_quotes = false;
+    let mut escaped = false;
+    let mut result = String::new();
+
+    for c in input.chars() {
+        if escaped {
+            result.push(c);
+            escaped = false;
+            continue;
+        }
+        if c == '\"' {
+            in_double_quotes = !in_double_quotes;
+        } else if c == '\'' {
+            in_single_quotes = !in_single_quotes;
+        } else if c =='\\' {
+            escaped = true;
+        } else if c != ' ' || in_double_quotes || in_single_quotes {
+            result.push(c);
+        } else if c == ' ' && !result.ends_with(" ") {
+            result.push(c);
+        }
+    }
+
+    result
 }
 
 fn handle_type_command(command: &str) {
@@ -207,7 +228,6 @@ fn clean_char(ch: char, input: &str) -> Vec<String> {
                 result.push(std::mem::take(&mut current));
             }
             in_quotes = !in_quotes;
-        // } else if in_quotes {
         } else if c != ' ' || in_quotes {
             current.push(c);
         }
