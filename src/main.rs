@@ -54,11 +54,11 @@ fn handle_echo_command(command: &str) {
     let arguments = if arguments.contains('\"') {
         // &arguments.replace('\"', "")
         // println!("With double quotes");
-        clean_char('\"', &arguments)
+        split_char('\"', &arguments)
     } else if arguments.contains('\'') {
         // &arguments.replace('\'', "")
         // println!("With single quotes");
-        clean_char('\'', &arguments)
+        split_char('\'', &arguments)
     } else {
         // println!("Without quotes");
         arguments.split_whitespace().map(|s| String::from(s)).collect::<Vec<_>>().join(" ")
@@ -194,7 +194,7 @@ fn split_char(ch: char, input: &str) -> Vec<String> {
     result
 }
 
-fn clean_char(ch: char, input: &str) -> String {
+fn clean_char(ch: char, input: &str) -> String { // TODO: Remove
     let mut result = String::new();
     let mut in_quotes = false;
 
