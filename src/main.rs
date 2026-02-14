@@ -52,14 +52,15 @@ fn handle_echo_command(command: &str) {
         // arguments = arguments.split_whitespace().collect::<Vec<_>>().join(" ");
     // }
     arguments = arguments.replace("\"\"", "");
+    arguments = arguments.replace("''", "");
     let arguments = if arguments.contains('\"') {
         // &arguments.replace('\"', "")
         // println!("With double quotes");
-        clean_char('\"', &arguments)
+        split_char('\"', &arguments)
     } else if arguments.contains('\'') {
         // &arguments.replace('\'', "")
         // println!("With single quotes");
-        clean_char('\'', &arguments)
+        split_char('\'', &arguments)
     } else {
         // println!("Without quotes");
         arguments.split_whitespace().map(|s| String::from(s)).collect::<Vec<_>>()
@@ -195,26 +196,26 @@ fn split_char(ch: char, input: &str) -> Vec<String> {
     result
 }
 
-fn clean_char(ch: char, input: &str) -> Vec<String> {
-    let mut result = Vec::new();
-    let mut in_quotes = false;
-    let mut current = String::new();
+// fn clean_char(ch: char, input: &str) -> Vec<String> {
+//     let mut result = Vec::new();
+//     let mut in_quotes = false;
+//     let mut current = String::new();
 
-    for c in input.chars() {
-        if c == ch {
-            if in_quotes {
-                result.push(std::mem::take(&mut current));
-            }
-            in_quotes = !in_quotes;
-        // } else if in_quotes {
-        } else if c != ' ' || in_quotes {
-            current.push(c);
-        }
-    }
-    result.push(std::mem::take(&mut current));
+//     for c in input.chars() {
+//         if c == ch {
+//             if in_quotes {
+//                 result.push(std::mem::take(&mut current));
+//             }
+//             in_quotes = !in_quotes;
+//         // } else if in_quotes {
+//         } else if c != ' ' || in_quotes {
+//             current.push(c);
+//         }
+//     }
+//     result.push(std::mem::take(&mut current));
 
-    result
-}
+//     result
+// }
 
 fn exec_command(command: &str) {
 
