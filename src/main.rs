@@ -188,7 +188,7 @@ fn split_char(ch: char, input: &str) -> Vec<String> {
             }
             in_quotes = !in_quotes;
         // } else if in_quotes {
-        } else if c != ' ' {
+        } else if c != ' ' || in_quotes {
             current.push(c);
         }
     }
