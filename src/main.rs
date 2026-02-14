@@ -55,11 +55,11 @@ fn handle_echo_command(command: &str) {
     let arguments = if arguments.contains('\"') {
         // &arguments.replace('\"', "")
         // println!("With double quotes");
-        split_char('\"', &arguments)
+        clean_char('\"', &arguments)
     } else if arguments.contains('\'') {
         // &arguments.replace('\'', "")
         // println!("With single quotes");
-        split_char('\'', &arguments)
+        clean_char('\'', &arguments)
     } else {
         // println!("Without quotes");
         arguments.split_whitespace().map(|s| String::from(s)).collect::<Vec<_>>()
@@ -187,29 +187,31 @@ fn split_char(ch: char, input: &str) -> Vec<String> {
                 result.push(std::mem::take(&mut current));
             }
             in_quotes = !in_quotes;
+        } else if in_quotes {
+            current.push(c);
+        }
+    }
+
+    result
+}
+
+fn clean_char(ch: char, input: &str) -> String {
+    let mut result = Vec::new();
+    let mut in_quotes = false;
+    let mut current = String::new();
+
+    for c in input.chars() {
+        if c == ch {
+            if in_quotes {
+                result.push(std::mem::take(&mut current));
+            }
+            in_quotes = !in_quotes;
         // } else if in_quotes {
         } else if c != ' ' || in_quotes {
             current.push(c);
         }
     }
     result.push(std::mem::take(&mut current));
-
-    result
-}
-
-fn clean_char(ch: char, input: &str) -> String { // TODO: Remove
-    let mut result = String::new();
-    let mut in_quotes = false;
-
-    for c in input.chars() {
-        if c == ch {
-            in_quotes = !in_quotes;
-        } else if in_quotes {
-            result.push(c);
-        } else if !result.ends_with(' ') {
-            result.push(' ');
-        }
-    }
 
     result
 }
