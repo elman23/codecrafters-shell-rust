@@ -62,10 +62,10 @@ fn handle_echo_command(command: &str) {
         clean_char('\'', &arguments)
     } else {
         // println!("Without quotes");
-        arguments.split_whitespace().map(|s| String::from(s)).collect::<Vec<_>>().join(' ')
+        arguments.split_whitespace().map(|s| String::from(s)).collect::<Vec<_>>()
     };
     // println!("Arguments: {:?}", arguments);
-    println!("{}", arguments);
+    println!("{}", arguments.join(" "));
 }
 
 fn handle_type_command(command: &str) {
@@ -195,7 +195,7 @@ fn split_char(ch: char, input: &str) -> Vec<String> {
     result
 }
 
-fn clean_char(ch: char, input: &str) -> String {
+fn clean_char(ch: char, input: &str) -> Vec<String> {
     let mut result = Vec::new();
     let mut in_quotes = false;
     let mut current = String::new();
