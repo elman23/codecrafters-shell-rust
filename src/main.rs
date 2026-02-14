@@ -51,6 +51,7 @@ fn handle_echo_command(command: &str) {
     // if !arguments.contains('\'') && !arguments.contains('\"') {
         // arguments = arguments.split_whitespace().collect::<Vec<_>>().join(" ");
     // }
+    arguments = arguments.replace("\"\"", "");
     let arguments = if arguments.contains('\"') {
         // &arguments.replace('\"', "")
         // println!("With double quotes");
