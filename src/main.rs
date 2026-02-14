@@ -15,6 +15,7 @@ const TYPE_CMD: &str = "type";
 const PROMPT: &str = "$ ";
 const PWD_CMD: &str = "pwd";
 const CD_CMD: &str = "cd";
+const CAT_CMD: &str = "cat";
 
 // TODO: Improve. This requires that each new built-in command shall be added manually.
 const SHELL_BUILTINS: &[&str] = &[EXIT_CMD, ECHO_CMD, TYPE_CMD, PWD_CMD, CD_CMD];
@@ -90,7 +91,7 @@ fn repl_loop() {
         io::stdout().flush().unwrap();
         
         // Wait for user input.
-        let command = read_command();
+        let mut command = read_command();
 
         // Exit command.
         if command == String::from(EXIT_CMD) {
@@ -119,6 +120,10 @@ fn repl_loop() {
         if command.starts_with(&*format!("{} ", &CD_CMD)) {
             handle_cd_command(&command);
             continue;
+        }
+
+        if command.starts_with(&*format!("{} ", &CAT_CMD)) {
+            command = command.replace("'", "");
         }
 
         // Execute command.
