@@ -163,6 +163,31 @@ fn get_directory_content(path: &PathBuf) -> Vec<PathBuf> {
     files
 }
 
+fn split_single_quoted(input: &str) -> Vec<String> {
+    let mut result = Vec::new();
+    let mut in_quotes = false;
+    let mut current = String::new();
+
+    for c in input.chars() {
+        match c {
+            '\'' => {
+                if in_quotes {
+                    result.push(current.clone());
+                    current.clear();
+                }
+                in_quotes = !in_quotes;
+            }
+            _ => {
+                if in_quotes {
+                    current.push(c);
+                }
+            }
+        }
+    }
+
+    result
+}
+
 fn exec_command(command: &str) {
 
     let path_var = env::var_os("PATH").expect("PATH variable not set!");
@@ -182,24 +207,30 @@ fn exec_command(command: &str) {
             if filename == OsStr::new(command_name) && executable {
                 found = true;
 
-                let mut command_split = command.split_whitespace();
-                let name = command_split.next().unwrap_or("");
+                // let mut command_split = command.split_whitespace();
+                // let name = command_split.next().unwrap_or("");
 
-                let mut args: Vec<String> = if name == "cat" {
-                    command
-                        .split_once(' ')
-                        .map(|(_, after)| vec![after.to_string()])
-                        .unwrap_or_default()
-                } else {
-                    command_split.map(|s| s.to_string()).collect()
-                };
+                // let mut args: Vec<String> = if name == "cat" {
+                //     command
+                //         .split_once(' ')
+                //         .map(|(_, after)| vec![after.to_string()])
+                //         .unwrap_or_default()
+                // } else {
+                //     command_split.map(|s| s.to_string()).collect()
+                // };
 
-                // Remove single quotes
-                for arg in &mut args {
-                    if arg.contains('\'') {
-                        *arg = arg.replace('\'', "");
-                    }
-                }
+                // for arg in &mut args {
+                //     if arg.contains('\'') {
+                //         *arg = arg.replace('\'', "");
+                //     }
+                // }
+
+                // New implementation.
+                let (name, args) = command.split_once(' ').unwrap();
+                let args = split_single_quoted(args);
+                
+                // println!("Command: {}", name);          // TODO: Remove, debug only.
+                // println!("Arguments: {:?}", args);      // TODO: Remove, debug only.
 
                 Command::new(name)
                     .args(&args)
