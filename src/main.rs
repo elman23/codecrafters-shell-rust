@@ -47,6 +47,11 @@ fn read_command() -> String {
 
 fn handle_echo_command(command: &str) {
     let arguments = &command[(ECHO_CMD.len() + 1)..];
+    let mut arguments = String::from(arguments);
+    if !arguments.contains("'") {
+        arguments = arguments.split_whitespace().collect::<Vec<_>>().join(" ");
+    }
+    let arguments = &arguments.replace("'", "");
     println!("{}", arguments);
 }
 
