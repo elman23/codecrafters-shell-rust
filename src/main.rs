@@ -61,10 +61,10 @@ fn handle_echo_command(command: &str) {
         split_char('\'', &arguments)
     } else {
         // println!("Without quotes");
-        arguments.split_whitespace().map(|s| String::from(s)).collect::<Vec<_>>().join(" ")
+        arguments.split_whitespace().map(|s| String::from(s)).collect::<Vec<_>>()
     };
     // println!("Arguments: {:?}", arguments);
-    println!("{}", arguments);
+    println!("{}", arguments.join(" "));
 }
 
 fn handle_type_command(command: &str) {
