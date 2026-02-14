@@ -53,17 +53,17 @@ fn handle_echo_command(command: &str) {
     // }
     let arguments = if arguments.contains('\"') {
         // &arguments.replace('\"', "")
-        println!("With double quotes");
+        // println!("With double quotes");
         split_char('\"', &arguments)
     } else if arguments.contains('\'') {
         // &arguments.replace('\'', "")
-        println!("With single quotes");
+        // println!("With single quotes");
         split_char('\'', &arguments)
     } else {
-        println!("Without quotes");
+        // println!("Without quotes");
         arguments.split_whitespace().map(|s| String::from(s)).collect::<Vec<_>>()
     };
-    println!("Arguments: {:?}", arguments);
+    // println!("Arguments: {:?}", arguments);
     println!("{}", arguments.join(" "));
 }
 
@@ -183,7 +183,6 @@ fn split_char(ch: char, input: &str) -> Vec<String> {
     for c in input.chars() {
         if c == ch {
             if in_quotes {
-                // Closing quote → push collected segment
                 result.push(std::mem::take(&mut current));
             }
             in_quotes = !in_quotes;
