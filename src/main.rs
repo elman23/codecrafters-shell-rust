@@ -228,6 +228,8 @@ fn clean_char(ch: char, input: &str) -> Vec<String> {
                 result.push(std::mem::take(&mut current));
             }
             in_quotes = !in_quotes;
+        } else if c = '\\' {
+            continue;
         } else if c != ' ' || in_quotes {
             current.push(c);
         }
