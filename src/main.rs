@@ -203,7 +203,7 @@ fn clean_char(ch: char, input: &str) -> String {
             in_quotes = !in_quotes;
         } else if in_quotes {
             result.push(c);
-        } else {
+        } else if !result.ends_with(' ') {
             result.push(' ');
         }
     }
