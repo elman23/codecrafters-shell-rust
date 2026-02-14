@@ -54,17 +54,17 @@ fn handle_echo_command(command: &str) {
     let arguments = if arguments.contains('\"') {
         // &arguments.replace('\"', "")
         // println!("With double quotes");
-        split_char('\"', &arguments)
+        clean_char('\"', &arguments)
     } else if arguments.contains('\'') {
         // &arguments.replace('\'', "")
         // println!("With single quotes");
-        split_char('\'', &arguments)
+        clean_char('\'', &arguments)
     } else {
         // println!("Without quotes");
-        arguments.split_whitespace().map(|s| String::from(s)).collect::<Vec<_>>()
+        arguments.split_whitespace().map(|s| String::from(s)).collect::<Vec<_>>().join(" ")
     };
     // println!("Arguments: {:?}", arguments);
-    println!("{}", arguments.join(" "));
+    println!("{}", arguments);
 }
 
 fn handle_type_command(command: &str) {
@@ -194,6 +194,22 @@ fn split_char(ch: char, input: &str) -> Vec<String> {
     result
 }
 
+fn clean_char(ch: char, input: &str) -> String {
+    let mut result = String::new();
+    let mut in_quotes = false;
+
+    for c in input.chars() {
+        if c == ch {
+            in_quotes = !in_quotes;
+        } else if in_quotes {
+            result.push(c);
+        } else {
+            result.push(' ');
+        }
+    }
+
+    result
+}
 
 fn exec_command(command: &str) {
 
