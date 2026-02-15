@@ -272,8 +272,8 @@ fn exec_command(command: &str) {
                     arg = &arg.replace("\\", "");
                     // println!("{}", arg.replace("\\", ""));
                 }
-                println!("Command: {}", name);
-                println!("Arguments: {:?}", args);
+                // println!("Command: {}", name);
+                // println!("Arguments: {:?}", args);
                 
                 Command::new(name)
                     .args(&args)
