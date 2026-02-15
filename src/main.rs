@@ -259,9 +259,8 @@ fn exec_command(command: &str) {
                 found = true;
 
                 let (name, mut args) = command.split_once(' ').unwrap();
-                let args = &args.replace("\\", "");
 
-                let args = if args.contains('\"') {
+                let mut args = if args.contains('\"') {
                     split_char('\"', args)
                 } else if args.contains('\'') {
                     split_char('\'', args)
@@ -270,10 +269,13 @@ fn exec_command(command: &str) {
                 };
 
                 
-                // for mut arg in &args {
-                    // arg = &arg.replace("\\", "");
-                    // println!("{}", arg.replace("\\", ""));
-                // }
+                for arg in &mut args {
+                    if arg.contains("\\\\") {
+                        *arg = arg.replace("\\\\", "\\");
+                    } else {
+                        *arg = arg.replace("\\", "");
+                    }
+                }
                 // println!("Command: {}", name);
                 // println!("Arguments: {:?}", args);
                 
