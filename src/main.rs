@@ -75,9 +75,17 @@ fn parse_echo_args(input: &str) -> String {
             continue;
         }
         if c == '\"' {
-            in_double_quotes = !in_double_quotes;
+            if !in_single_quotes {
+                in_double_quotes = !in_double_quotes;
+            } else {
+                result.push(c);
+            }
         } else if c == '\'' {
-            in_single_quotes = !in_single_quotes;
+            if !in_double_quotes {
+                in_single_quotes = !in_single_quotes;
+            } else {
+                result.push(c);
+            }
         } else if c =='\\' {
             escaped = true;
         } else if c != ' ' || in_double_quotes || in_single_quotes {
