@@ -258,9 +258,10 @@ fn exec_command(command: &str) {
             if filename == OsStr::new(command_name) && executable {
                 found = true;
 
-                let (name, args) = command.split_once(' ').unwrap();
+                let (name, mut args) = command.split_once(' ').unwrap();
+                let args = &args.replace("\\", "");
 
-                let mut args = if args.contains('\"') {
+                let args = if args.contains('\"') {
                     split_char('\"', args)
                 } else if args.contains('\'') {
                     split_char('\'', args)
@@ -268,10 +269,11 @@ fn exec_command(command: &str) {
                     args.split_whitespace().map(|s| s.to_string()).collect()
                 };
 
-                for mut arg in &args {
-                    arg = &arg.replace("\\", "");
+                
+                // for mut arg in &args {
+                    // arg = &arg.replace("\\", "");
                     // println!("{}", arg.replace("\\", ""));
-                }
+                // }
                 // println!("Command: {}", name);
                 // println!("Arguments: {:?}", args);
                 
