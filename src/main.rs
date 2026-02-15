@@ -268,7 +268,9 @@ fn exec_command(command: &str) {
                     args.split_whitespace().map(|s| s.to_string()).collect()
                 };
 
-                args = args.replace("\\", "");
+                for arg in args {
+                    arg = arg.replace("\\", "");
+                }
                 // println!("Command: {}", name);
                 // println!("Arguments: {:?}", args);
                 
