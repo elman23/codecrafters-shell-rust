@@ -269,7 +269,7 @@ fn exec_command(command: &str) {
                 };
 
                 for arg in &args {
-                    arg = arg.replace("\\", "");
+                    arg = &arg.replace("\\", "");
                 }
                 // println!("Command: {}", name);
                 // println!("Arguments: {:?}", args);
