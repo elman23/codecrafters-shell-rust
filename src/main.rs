@@ -162,7 +162,7 @@ fn split_char(ch: char, input: &str) -> Vec<String> {
 
     for c in input.chars() {
         if c == ch {
-            current.push(c);
+            // current.push(c);
             if in_quotes {
                 result.push(std::mem::take(&mut current));
             }
@@ -177,26 +177,6 @@ fn split_char(ch: char, input: &str) -> Vec<String> {
     result
 }
 
-// fn clean_char(ch: char, input: &str) -> Vec<String> {
-//     let mut result = Vec::new();
-//     let mut in_quotes = false;
-//     let mut current = String::new();
-
-//     for c in input.chars() {
-//         if c == ch {
-//             if in_quotes {
-//                 result.push(std::mem::take(&mut current));
-//             }
-//             in_quotes = !in_quotes;
-//         } else if c != ' ' || in_quotes {
-//             current.push(c);
-//         }
-//     }
-//     result.push(std::mem::take(&mut current));
-
-//     result
-// }
-
 fn get_command_args(args: &str) -> Vec<String> {
     let mut handle_slashes = false;
     let mut args = if args.contains('\"') {
@@ -208,14 +188,15 @@ fn get_command_args(args: &str) -> Vec<String> {
         args.split_whitespace().map(|s| s.to_string()).collect()
     };
 
-    if handle_slashes {
-        for arg in &mut args {
+    for arg in &mut args {
+        if handle_slashes {
             if arg.contains("\\\\") {
                 *arg = arg.replace("\\\\", "\\");
             } else {
                 *arg = arg.replace("\\", "");
             }
         }
+        *arg = arg.trim().to_string();
     }
 
     args
@@ -244,6 +225,9 @@ fn exec_command(command: &str) {
 
                 let args = get_command_args(args);
                 
+                // println!("Command: {}", name);
+                // println!("Arguments: {:?}", args);
+
                 Command::new(name)
                     .args(&args)
                     .spawn()
