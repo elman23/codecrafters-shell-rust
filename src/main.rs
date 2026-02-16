@@ -168,7 +168,7 @@ fn split_char(ch: char, input: &str) -> Vec<String> {
             in_quotes = !in_quotes;
         } else if c == '\\' {
             continue;  
-        } else if in_quotes {
+        } else {
             current.push(c);
         }
     }
