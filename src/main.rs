@@ -230,8 +230,6 @@ fn exec_command(command: &str) {
     let command_name = command_path.file_stem().unwrap();
 
     let mut found = false;
-    let args: Vec<String> = vec![];
-    let command: &str = "";
 
     for path in paths {
         let files: Vec<PathBuf> = get_directory_content(&path);
@@ -262,7 +260,7 @@ fn exec_command(command: &str) {
     }
 
     if !found {
-        println!("{} {}: command not found", command, args.join(" "));
+        println!("{}: command not found", command);
     }  
 }
 
