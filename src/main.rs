@@ -50,15 +50,7 @@ fn handle_echo_command(command: &str) {
     let mut arguments = String::from(arguments);
     arguments = arguments.replace("\"\"", "");
     arguments = arguments.replace("''", "");
-    // let arguments = if arguments.contains('\"') {
-    //     clean_char('\"', &arguments)
-    // } else if arguments.contains('\'') {
-    //     clean_char('\'', &arguments)
-    // } else {
-    //     arguments.split_whitespace().map(|s| String::from(s)).collect::<Vec<_>>()
-    // };
     let arguments = parse_echo_args(&arguments);
-    // println!("{}", arguments.join(" "));
     println!("{}", arguments);
 }
 
@@ -86,7 +78,7 @@ fn parse_echo_args(input: &str) -> String {
             } else {
                 result.push(c);
             }
-        } else if c =='\\' {
+        } else if c =='\\' && !in_single_quotes && !in_double_quotes {
             escaped = true;
         } else if c != ' ' || in_double_quotes || in_single_quotes {
             result.push(c);
@@ -123,49 +115,6 @@ fn handle_cd_command(command: &str) {
         change_dir(dir);
     } else {
         println!("cd: {}: No such file or directory", dir)
-    }
-}
-
-fn repl_loop() {
-    loop {
-        // Display prompt.
-        print!("{}", PROMPT);
-        io::stdout().flush().unwrap();
-        
-        // Wait for user input.
-        let command = read_command();
-
-        // Exit command.
-        if command == String::from(EXIT_CMD) {
-            break;
-        }
-
-        // Echo command.
-        if command.starts_with(&*format!("{} ", &ECHO_CMD)) {
-            handle_echo_command(&command);
-            continue;
-        }
-
-        // Type command.
-        if command.starts_with(&*format!("{} ", &TYPE_CMD)) {
-            handle_type_command(&command);
-            continue;
-        }
-
-        // Pwd command.
-        if command == String::from(PWD_CMD) {
-            print_pwd();
-            continue;
-        }
-
-        // Cd command.
-        if command.starts_with(&*format!("{} ", &CD_CMD)) {
-            handle_cd_command(&command);
-            continue;
-        }
-
-        // Execute command.
-        exec_command(&command);
     }
 }
 
@@ -217,7 +166,7 @@ fn split_char(ch: char, input: &str) -> Vec<String> {
                 result.push(std::mem::take(&mut current));
             }
             in_quotes = !in_quotes;
-        } else if c == '\\' {
+        } else if c == '\\'  && !in_quotes {
             continue;  
         } else if in_quotes {
             current.push(c);
@@ -227,24 +176,36 @@ fn split_char(ch: char, input: &str) -> Vec<String> {
     result
 }
 
-fn clean_char(ch: char, input: &str) -> Vec<String> {
-    let mut result = Vec::new();
-    let mut in_quotes = false;
-    let mut current = String::new();
+// fn clean_char(ch: char, input: &str) -> Vec<String> {
+//     let mut result = Vec::new();
+//     let mut in_quotes = false;
+//     let mut current = String::new();
 
-    for c in input.chars() {
-        if c == ch {
-            if in_quotes {
-                result.push(std::mem::take(&mut current));
-            }
-            in_quotes = !in_quotes;
-        } else if c != ' ' || in_quotes {
-            current.push(c);
-        }
-    }
-    result.push(std::mem::take(&mut current));
+//     for c in input.chars() {
+//         if c == ch {
+//             if in_quotes {
+//                 result.push(std::mem::take(&mut current));
+//             }
+//             in_quotes = !in_quotes;
+//         } else if c != ' ' || in_quotes {
+//             current.push(c);
+//         }
+//     }
+//     result.push(std::mem::take(&mut current));
 
-    result
+//     result
+// }
+
+fn get_command_args(args: &str) -> Vec<String> {
+    let mut args = if args.contains('\"') {
+        split_char('\"', args)
+    } else if args.contains('\'') {
+        split_char('\'', args)
+    } else {
+        args.split_whitespace().map(|s| s.to_string()).collect()
+    };
+
+    args
 }
 
 fn exec_command(command: &str) {
@@ -266,26 +227,9 @@ fn exec_command(command: &str) {
             if filename == OsStr::new(command_name) && executable {
                 found = true;
 
-                let (name, mut args) = command.split_once(' ').unwrap();
+                let (name, args) = command.split_once(' ').unwrap();
 
-                let mut args = if args.contains('\"') {
-                    split_char('\"', args)
-                } else if args.contains('\'') {
-                    split_char('\'', args)
-                } else {
-                    args.split_whitespace().map(|s| s.to_string()).collect()
-                };
-
-                
-                for arg in &mut args {
-                    if arg.contains("\\\\") {
-                        *arg = arg.replace("\\\\", "\\");
-                    } else {
-                        *arg = arg.replace("\\", "");
-                    }
-                }
-                // println!("Command: {}", name);
-                // println!("Arguments: {:?}", args);
+                let args = get_command_args(args);
                 
                 Command::new(name)
                     .args(&args)
@@ -305,6 +249,49 @@ fn exec_command(command: &str) {
     if !found {
         println!("{}: command not found", command);
     }  
+}
+
+fn repl_loop() {
+    loop {
+        // Display prompt.
+        print!("{}", PROMPT);
+        io::stdout().flush().unwrap();
+        
+        // Wait for user input.
+        let command = read_command();
+
+        // Exit command.
+        if command == String::from(EXIT_CMD) {
+            break;
+        }
+
+        // Echo command.
+        if command.starts_with(&*format!("{} ", &ECHO_CMD)) {
+            handle_echo_command(&command);
+            continue;
+        }
+
+        // Type command.
+        if command.starts_with(&*format!("{} ", &TYPE_CMD)) {
+            handle_type_command(&command);
+            continue;
+        }
+
+        // Pwd command.
+        if command == String::from(PWD_CMD) {
+            print_pwd();
+            continue;
+        }
+
+        // Cd command.
+        if command.starts_with(&*format!("{} ", &CD_CMD)) {
+            handle_cd_command(&command);
+            continue;
+        }
+
+        // Execute command.
+        exec_command(&command);
+    }
 }
 
 fn main() {
