@@ -197,7 +197,7 @@ fn clean_char(ch: char, input: &str) -> Vec<String> {
 }
 
 fn get_command_args(args: &str) -> Vec<String> {
-    let handle_slashes = false;
+    let mut handle_slashes = false;
     let mut args = if args.contains('\"') {
         split_char('\"', args)
     } else if args.contains('\'') {
