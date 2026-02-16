@@ -162,6 +162,7 @@ fn split_char(ch: char, input: &str) -> Vec<String> {
 
     for c in input.chars() {
         if c == ch {
+            current.push(c);
             if in_quotes {
                 result.push(std::mem::take(&mut current));
             }
