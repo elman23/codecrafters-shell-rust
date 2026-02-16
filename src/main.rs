@@ -166,7 +166,7 @@ fn split_char(ch: char, input: &str) -> Vec<String> {
                 result.push(std::mem::take(&mut current));
             }
             in_quotes = !in_quotes;
-        } else if c == '\\' {
+        } else if c == '\\' && !in_quotes {
             continue;  
         } else {
             current.push(c);
