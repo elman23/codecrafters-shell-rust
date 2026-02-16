@@ -166,7 +166,7 @@ fn split_char(ch: char, input: &str) -> Vec<String> {
                 result.push(std::mem::take(&mut current));
             }
             in_quotes = !in_quotes;
-        } else if c == '\\'  && !in_quotes {
+        } else if c == '\\' {
             continue;  
         } else if in_quotes {
             current.push(c);
@@ -176,34 +176,46 @@ fn split_char(ch: char, input: &str) -> Vec<String> {
     result
 }
 
-// fn clean_char(ch: char, input: &str) -> Vec<String> {
-//     let mut result = Vec::new();
-//     let mut in_quotes = false;
-//     let mut current = String::new();
+fn clean_char(ch: char, input: &str) -> Vec<String> {
+    let mut result = Vec::new();
+    let mut in_quotes = false;
+    let mut current = String::new();
 
-//     for c in input.chars() {
-//         if c == ch {
-//             if in_quotes {
-//                 result.push(std::mem::take(&mut current));
-//             }
-//             in_quotes = !in_quotes;
-//         } else if c != ' ' || in_quotes {
-//             current.push(c);
-//         }
-//     }
-//     result.push(std::mem::take(&mut current));
+    for c in input.chars() {
+        if c == ch {
+            if in_quotes {
+                result.push(std::mem::take(&mut current));
+            }
+            in_quotes = !in_quotes;
+        } else if c != ' ' || in_quotes {
+            current.push(c);
+        }
+    }
+    result.push(std::mem::take(&mut current));
 
-//     result
-// }
+    result
+}
 
 fn get_command_args(args: &str) -> Vec<String> {
+    let handle_slashes = false;
     let mut args = if args.contains('\"') {
         split_char('\"', args)
     } else if args.contains('\'') {
         split_char('\'', args)
     } else {
+        handle_slashes = true;
         args.split_whitespace().map(|s| s.to_string()).collect()
     };
+
+    if handle_slashes {
+        for arg in &mut args {
+            if arg.contains("\\\\") {
+                *arg = arg.replace("\\\\", "\\");
+            } else {
+                *arg = arg.replace("\\", "");
+            }
+        }
+    }
 
     args
 }
