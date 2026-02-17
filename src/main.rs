@@ -170,7 +170,6 @@ fn split_char(ch: char, input: &str) -> Vec<String> {
             continue;
         }
         if c == ch {
-            // current.push(c);
             if in_quotes {
                 result.push(std::mem::take(&mut current));
             }
@@ -210,18 +209,54 @@ fn get_command_args(args: &str) -> Vec<String> {
     args
 }
 
+// fn cleanup_name(name: &str) -> String {
+//     let mut in_single_quote = false;
+//     let mut in_double_quote = false;
+//     let mut cleaned = String::new();
+//     for c in name.chars() {
+//         if c == '\'' && !in_double_quote {
+//             in_single_quote = !in_single_quote;
+//             continue;
+//         } else if c == '"' && !in_single_quote {
+//             in_double_quote = !in_double_quote;
+//             continue;
+//         } else {
+//             cleaned.push(c);
+//         }
+//     }
+//     cleaned
+// }
+
 fn cleanup_name(name: &str) -> String {
-    // if name.contains(' ') {
-    //     name.to_string()
-    // } else {
-    //     name.trim()
-    //         .replace("\"", "")
-    //         .to_string()
-    // }
-    name.trim()
-        .replace("\"", "")
-        .replace("\'", "")
-        .to_string()
+    let mut in_single_quote = false;
+    let mut in_double_quote = false;
+    let mut escaped = false;
+    let mut cleaned = String::new();
+
+    for c in name.chars() {
+        if escaped {
+            cleaned.push(c);
+            escaped = false;
+            continue;
+        }
+
+        if c == '\\' && in_double_quote {
+            escaped = true;
+            continue;
+        }
+
+        if c == '\'' && !in_double_quote {
+            in_single_quote = !in_single_quote;
+            continue;
+        } else if c == '"' && !in_single_quote {
+            in_double_quote = !in_double_quote;
+            continue;
+        } else {
+            cleaned.push(c);
+        }
+    }
+
+    cleaned
 }
 
 fn get_command_path(s: &str) -> String {
@@ -246,68 +281,91 @@ fn get_command_path(s: &str) -> String {
     command_path
 }
 
+// fn exec_command(command: &str) {
+
+//     let path_var = env::var_os("PATH").expect("PATH variable not set!");
+//     let paths: Vec<PathBuf> = env::split_paths(&path_var).collect();
+
+//     let command_path = get_command_path(command);
+//     let command_name = command_path.split("/").last().unwrap_or("Failed to parse command name");
+//     let command_name = cleanup_name(command_name);
+
+//     let mut found = false;
+
+//     for path in paths {
+//         let files: Vec<PathBuf> = get_directory_content(&path);
+
+//         for file in files {
+//             let filename = file.to_str().expect("Failed to parse command name").split("/").last().unwrap_or("");
+//             let executable = is_executable(&file.as_path()).expect("Failed to check execution permissions!");
+//             if filename == command_name.replace("\"", "") && executable {
+//                 found = true;
+                
+//                 let args_index = command.rfind(&command_name).unwrap() + command_name.len();
+//                 let args = &command[(args_index + 1)..];
+//                 let args = get_command_args(args);
+
+//                 // let args = &command[command_path.len()..];
+//                 // let args = args.trim_start();
+//                 // let args = get_command_args(args);
+
+//                 println!("Command: [{}]", command_name);
+//                 println!("Arguments: [{:?}]", args);
+
+//                 Command::new(&command_name)
+//                     .args(&args)
+//                     .spawn()
+//                     .expect("Command failed to start")
+//                     .wait_with_output()
+//                     .expect("Failed to wait on command");
+
+//                 break;
+//             }
+//         }
+//         if found {
+//             break;
+//         }
+//     }
+
+//     if !found {
+//         println!("{}: command not found", command);
+//     }  
+// }
+
 fn exec_command(command: &str) {
 
     let path_var = env::var_os("PATH").expect("PATH variable not set!");
     let paths: Vec<PathBuf> = env::split_paths(&path_var).collect();
 
-    // let command_path = PathBuf::from(command.split_whitespace().next().unwrap());
     let command_path = get_command_path(command);
     let command_name = command_path.split("/").last().unwrap_or("Failed to parse command name");
     let command_name = cleanup_name(command_name);
 
     let mut found = false;
 
-    for path in paths {
-        let files: Vec<PathBuf> = get_directory_content(&path);
+    let args = &command[command_path.len()..];
+    let args = args.trim_start();
+    let args = get_command_args(args);
 
-        for file in files {
-            // let filename = file.file_stem().unwrap();
-            let mut filename = file.to_str().expect("Failed to parse command name").split("/").last().unwrap_or("");
-            // println!("Filename: {}", filename);
-            // if filename.contains("\"") {
-                // let mut split = filename.split("\"");
-                // split.next();
-                // filename = split.next().unwrap();
-            // }
-            // println!("Filename: {}", filename);
-            let executable = is_executable(&file.as_path()).expect("Failed to check execution permissions!");
-            if filename == command_name.replace("\"", "") && executable {
-                found = true;
-                
-                // let (name, args) = command.split_once(' ').unwrap_or((command, ""));
-                let mut name = cleanup_name(&command_name);                
-                // if name.contains(" ") && !(name.starts_with("'") && name.ends_with("'")) {
-                    // name = format!("'{}'", name); 
-                // }
-                let args_index = command.rfind(&command_name).unwrap() + command_name.len();
-                let args = &command[(args_index + 1)..];
-                let args = get_command_args(args);
-                // println!("Command: {}", name);
-                // println!("Arguments: {:?}", args);
-
-                Command::new(name)
-                    .args(&args)
-                    .spawn()
-                    .expect("Command failed to start")
-                    .wait_with_output()
-                    .expect("Failed to wait on command");
-                // Command::new(name)
-                //     .args(&args)
-                //     .output()
-                //     .expect("Failed to execute command");
-
-                break;
+    match Command::new(&command_name)
+        .args(&args)
+        .spawn()
+    {
+        Ok(child) => {
+            match child.wait_with_output() {
+                Ok(output) => {
+                    print!("{}", String::from_utf8_lossy(&output.stdout));
+                    io::stdout().flush().unwrap();
+                }
+                Err(e) => {
+                    eprintln!("Failed to wait for {}: {}", command_name, e);
+                }
             }
         }
-        if found {
-            break;
+        Err(_) => {
+            eprintln!("{}: command not found", command_name);
         }
     }
-
-    if !found {
-        println!("{}: command not found", command);
-    }  
 }
 
 fn repl_loop() {
