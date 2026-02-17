@@ -78,7 +78,7 @@ fn parse_echo_args(input: &str) -> String {
             } else {
                 result.push(c);
             }
-        } else if c =='\\' && !in_single_quotes && !in_double_quotes {
+        } else if c =='\\' && !in_single_quotes {
             escaped = true;
         } else if c != ' ' || in_double_quotes || in_single_quotes {
             result.push(c);
@@ -156,19 +156,27 @@ fn get_directory_content(path: &PathBuf) -> Vec<PathBuf> {
 }
 
 fn split_char(ch: char, input: &str) -> Vec<String> {
+    let double_quotes = ch == '"';
+    
     let mut result = Vec::new();
     let mut in_quotes = false;
+    let mut escaped = false;
     let mut current = String::new();
 
     for c in input.chars() {
+        if escaped {
+            current.push(c);
+            escaped = false;
+            continue;
+        }
         if c == ch {
             // current.push(c);
             if in_quotes {
                 result.push(std::mem::take(&mut current));
             }
             in_quotes = !in_quotes;
-        } else if c == '\\' && !in_quotes {
-            continue;  
+        } else if c == '\\' && (double_quotes || !in_quotes) {
+            escaped = true;
         } else {
             current.push(c);
         }
