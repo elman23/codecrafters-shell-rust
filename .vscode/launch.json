@@ -14,7 +14,10 @@
                     "--bin=codecrafters-shell"
                 ]
             },
-            "args": []
+            "args": [],
+            "env": {
+                "PATH": "/tmp/exe:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin::/usr/lib/wsl/lib"
+            }
         },
         {
             "name": "Debug unit tests in executable 'codecrafters-shell'",

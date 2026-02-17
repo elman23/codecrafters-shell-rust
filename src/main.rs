@@ -210,13 +210,51 @@ fn get_command_args(args: &str) -> Vec<String> {
     args
 }
 
+fn cleanup_name(name: &str) -> String {
+    // if name.contains(' ') {
+    //     name.to_string()
+    // } else {
+    //     name.trim()
+    //         .replace("\"", "")
+    //         .to_string()
+    // }
+    name.trim()
+        .replace("\"", "")
+        .replace("\'", "")
+        .to_string()
+}
+
+fn get_command_path(s: &str) -> String {
+    let mut command_path = String::new();
+    
+    let mut in_double_quote = false;
+    let mut in_single_quote = false;
+    
+    for c in s.chars() {
+        if c == ' ' && !in_double_quote && !in_single_quote {
+            break;
+        }
+        if c == '"' {
+            in_double_quote = !in_double_quote;        
+        }
+        if c == '\'' {
+            in_single_quote = !in_single_quote
+        }
+        command_path.push(c);
+    }
+    
+    command_path
+}
+
 fn exec_command(command: &str) {
 
     let path_var = env::var_os("PATH").expect("PATH variable not set!");
     let paths: Vec<PathBuf> = env::split_paths(&path_var).collect();
 
-    let command_path = PathBuf::from(command.split_whitespace().next().unwrap());
-    let command_name = command_path.file_stem().unwrap();
+    // let command_path = PathBuf::from(command.split_whitespace().next().unwrap());
+    let command_path = get_command_path(command);
+    let command_name = command_path.split("/").last().unwrap_or("Failed to parse command name");
+    let command_name = cleanup_name(command_name);
 
     let mut found = false;
 
@@ -224,15 +262,27 @@ fn exec_command(command: &str) {
         let files: Vec<PathBuf> = get_directory_content(&path);
 
         for file in files {
-            let filename = file.file_stem().unwrap();
+            // let filename = file.file_stem().unwrap();
+            let mut filename = file.to_str().expect("Failed to parse command name").split("/").last().unwrap_or("");
+            // println!("Filename: {}", filename);
+            // if filename.contains("\"") {
+                // let mut split = filename.split("\"");
+                // split.next();
+                // filename = split.next().unwrap();
+            // }
+            // println!("Filename: {}", filename);
             let executable = is_executable(&file.as_path()).expect("Failed to check execution permissions!");
-            if filename == OsStr::new(command_name) && executable {
+            if filename == command_name.replace("\"", "") && executable {
                 found = true;
-
-                let (name, args) = command.split_once(' ').unwrap();
-
-                let args = get_command_args(args);
                 
+                // let (name, args) = command.split_once(' ').unwrap_or((command, ""));
+                let mut name = cleanup_name(&command_name);                
+                // if name.contains(" ") && !(name.starts_with("'") && name.ends_with("'")) {
+                    // name = format!("'{}'", name); 
+                // }
+                let args_index = command.rfind(&command_name).unwrap() + command_name.len();
+                let args = &command[(args_index + 1)..];
+                let args = get_command_args(args);
                 // println!("Command: {}", name);
                 // println!("Arguments: {:?}", args);
 
@@ -242,6 +292,10 @@ fn exec_command(command: &str) {
                     .expect("Command failed to start")
                     .wait_with_output()
                     .expect("Failed to wait on command");
+                // Command::new(name)
+                //     .args(&args)
+                //     .output()
+                //     .expect("Failed to execute command");
 
                 break;
             }
