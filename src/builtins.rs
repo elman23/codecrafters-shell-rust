@@ -13,6 +13,7 @@ const ECHO_CMD: &str = "echo";
 const TYPE_CMD: &str = "type";
 const PWD_CMD: &str = "pwd";
 const CD_CMD: &str = "cd";
+const HOME_DIR: &str = "~";
 
 // TODO: Improve. This requires that each new built-in command shall be added manually.
 const SHELL_BUILTINS: &[&str] = &[EXIT_CMD, ECHO_CMD, TYPE_CMD, PWD_CMD, CD_CMD];
@@ -112,9 +113,6 @@ fn check_type(command: &str) -> Result<String, String> {
                 return Ok(format!("{} is {}", command, file.to_str().unwrap()));
             }
         }
-        // if found {
-            // break;
-        // }
     }
 
     // if !found {
@@ -140,8 +138,7 @@ pub fn handle_cd_command(command: &str) -> Result<(), Error> {
     let arguments = &command[(CD_CMD.len() + 1)..];
     let dir = arguments.split_whitespace().next().unwrap();
 
-    // The "~" special case.
-    if dir == "~" {
+    if dir == HOME_DIR {
         let home_dir = env::var_os("HOME").expect("HOME variable not set!");
         let home_dir = home_dir.to_str().unwrap();
         return change_dir(home_dir);
@@ -150,7 +147,6 @@ pub fn handle_cd_command(command: &str) -> Result<(), Error> {
     if dir_exists(dir) {
         return change_dir(dir);
     } else {
-        // println!("cd: {}: No such file or directory", dir)
         return Err(io::Error::new(
             io::ErrorKind::NotFound,
             format!("cd: {}: No such file or directory", dir),
