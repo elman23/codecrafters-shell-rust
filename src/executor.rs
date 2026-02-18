@@ -1,7 +1,8 @@
 #[allow(unused_imports)]
-use std::io::{self, Write};
+use std::io::{self, Write, Error};
 
-use std::process::Command;
+use std::fs::File;
+use std::process::{Command, Stdio};
 
 pub fn read_command() -> String {
     let mut command: String = String::new();
@@ -118,33 +119,81 @@ fn get_command_path(s: &str) -> String {
     command_path
 }
 
-pub fn exec_command(command: &str) {
+pub fn get_stdout_redirect(input: &str) -> (Option<String>, Option<usize>) {
+    let mut redirect = false;
+    let mut redirect_file = String::new();
+    let mut redirect_index: usize = 0;
+
+    let mut in_single_quote = false;
+    let mut in_double_quote = false;
+
+    let mut counter = 0;
+    for c in input.chars() {
+        counter += 1;
+        if redirect {
+            redirect_file.push(c);
+            continue;
+        }
+        if c == '\'' && !in_double_quote {
+            in_single_quote = !in_single_quote;
+            continue;
+        }
+        if c == '"' && !in_single_quote {
+            in_double_quote = !in_double_quote;
+            continue;
+        }
+        if c == '>' && !in_single_quote && !in_double_quote {
+            redirect = true;
+            if redirect_index == 0 {
+                redirect_index = counter;
+            }
+        }
+    }
+
+    if redirect {
+        (Some(redirect_file.trim().to_string()), Some(redirect_index))
+    } else {
+        (None, None)
+    }
+}
+
+pub fn exec_command(command: &str) -> Result<String, String> {
 
     let command_path = get_command_path(command);
     let command_name = command_path.split("/").last().unwrap_or("Failed to parse command name");
     let command_name = cleanup_name(command_name);
 
-    let args = &command[command_path.len()..];
+    let args;
+
+    // TODO: Handle redirect in main function.
+    let (redirect, index) = get_stdout_redirect(command);
+    if redirect.is_some() {
+        let index = index.unwrap() - 1;
+        args = &command[command_path.len()..index];
+    } else {
+        args = &command[command_path.len()..];
+    }
+
     let args = args.trim_start();
     let args = get_command_args(args);
 
     match Command::new(&command_name)
         .args(&args)
+        .stdout(Stdio::piped())
         .spawn()
     {
         Ok(child) => {
             match child.wait_with_output() {
                 Ok(output) => {
-                    print!("{}", String::from_utf8_lossy(&output.stdout));
-                    io::stdout().flush().unwrap();
+                    return Ok(String::from_utf8_lossy(&output.stdout).to_string());
                 }
                 Err(e) => {
-                    eprintln!("Failed to wait for {}: {}", command_name, e);
+                    return Ok(e.to_string());
                 }
             }
         }
         Err(_) => {
-            eprintln!("{}: command not found", command_name);
+            return Ok(format!("{}: command not found", command_name));
         }
     }
 }

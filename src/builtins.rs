@@ -1,5 +1,5 @@
 #[allow(unused_imports)]
-use std::io::{self, Write};
+use std::io::{self, Write, Error};
 
 use std::fs;
 use std::env;
@@ -38,8 +38,9 @@ fn get_directory_content(path: &PathBuf) -> Vec<PathBuf> {
     files
 }
 
-pub fn print_pwd() {
-    println!("{}", env::current_dir().unwrap().to_str().unwrap());
+pub fn print_pwd() -> String {
+    // println!("{}", env::current_dir().unwrap().to_str().unwrap());
+    env::current_dir().unwrap().to_str().unwrap().to_string()
 }
 
 fn parse_echo_args(input: &str) -> String {
@@ -78,16 +79,17 @@ fn parse_echo_args(input: &str) -> String {
     result
 }
 
-pub fn handle_echo_command(command: &str) {
+pub fn handle_echo_command(command: &str) -> String {
     let arguments = &command[(ECHO_CMD.len() + 1)..];
     let mut arguments = String::from(arguments);
     arguments = arguments.replace("\"\"", "");
     arguments = arguments.replace("''", "");
     let arguments = parse_echo_args(&arguments);
-    println!("{}", arguments);
+    // println!("{}", arguments);
+    arguments
 }
 
-fn check_type(command: &str) {
+fn check_type(command: &str) -> String {
     let path_var = env::var_os("PATH").expect("PATH variable not set!");
     let paths: Vec<PathBuf> = env::split_paths(&path_var).collect();
 
@@ -99,35 +101,37 @@ fn check_type(command: &str) {
             let filename = file.file_stem();
             let executable = is_executable(&file.as_path()).expect("Failed to check execution permissions!");
             if filename == Some(OsStr::new(command)) && executable {
-                println!("{} is {}", command, file.to_str().unwrap());
-                found = true;
-                break;
+                // println!("{} is {}", command, file.to_str().unwrap());
+                // found = true;
+                // break;
+                return format!("{} is {}", command, file.to_str().unwrap());
             }
         }
-        if found {
-            break;
-        }
+        // if found {
+            // break;
+        // }
     }
 
-    if !found {
-        println!("{}: not found", command);
-    }  
+    // if !found {
+        // println!("{}: not found", command);
+    // }
+    format!("{}: not found", command)
 }
 
-pub fn handle_type_command(command: &str) {
+pub fn handle_type_command(command: &str) -> String {
     let arguments = &command[(TYPE_CMD.len() + 1)..];
     if SHELL_BUILTINS.contains(&arguments) {
-        println!("{} is a shell builtin", arguments);
+        format!("{} is a shell builtin", arguments)
     } else {
-        check_type(arguments);
+        check_type(arguments)
     }
 }
 
-fn change_dir(dir: &str) {
-    let _ = std::env::set_current_dir(dir);
+fn change_dir(dir: &str) -> Result<(), Error>{
+    std::env::set_current_dir(dir)
 }
 
-pub fn handle_cd_command(command: &str) {
+pub fn handle_cd_command(command: &str) -> Result<(), Error> {
     let arguments = &command[(CD_CMD.len() + 1)..];
     let dir = arguments.split_whitespace().next().unwrap();
 
@@ -135,13 +139,16 @@ pub fn handle_cd_command(command: &str) {
     if dir == "~" {
         let home_dir = env::var_os("HOME").expect("HOME variable not set!");
         let home_dir = home_dir.to_str().unwrap();
-        change_dir(home_dir);
-        return;
+        return change_dir(home_dir);
     }
 
     if dir_exists(dir) {
-        change_dir(dir);
+        return change_dir(dir);
     } else {
-        println!("cd: {}: No such file or directory", dir)
+        // println!("cd: {}: No such file or directory", dir)
+        return Err(io::Error::new(
+            io::ErrorKind::NotFound,
+            format!("cd: {}: No such file or directory", dir),
+        ));
     }
 }
