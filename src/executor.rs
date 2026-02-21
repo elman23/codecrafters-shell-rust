@@ -3,6 +3,8 @@ use std::io::{self, Write, Error};
 
 use std::process::{Command, Stdio};
 
+use crate::output::MyOutput;
+
 pub fn read_command() -> String {
     let mut command: String = String::new();
     io::stdin().read_line(&mut command).unwrap();
@@ -182,7 +184,7 @@ pub fn get_stdout_redirect(input: &str) -> (Option<String>, Option<String>, Opti
     }
 }
 
-pub fn exec_command(command: &str) -> Result<String, String> {
+pub fn exec_command(command: &str) -> MyOutput {
 
     let command_path = get_command_path(command);
     let command_name = command_path.split("/").last().unwrap_or("Failed to parse command name");
@@ -210,23 +212,45 @@ pub fn exec_command(command: &str) -> Result<String, String> {
     {
         Ok(child) => {
             match child.wait_with_output() {
-                Ok(output) => {
-                    // return Ok(String::from_utf8_lossy(&output.stdout).to_string());
-                    if output.status.success() {
-                        let raw_output = String::from_utf8(output.stdout).unwrap();
-                        Ok(raw_output)
-                    } else {
-                        let raw_error = String::from_utf8(output.stderr).unwrap();
-                        return Err(raw_error);
+                // Ok(output) => {
+                //     // return Ok(String::from_utf8_lossy(&output.stdout).to_string());
+                //     if output.status.success() {
+                //         let raw_output = String::from_utf8(output.stdout).unwrap();
+                //         Ok(raw_output)
+                //     } else {
+                //         let raw_error = String::from_utf8(output.stderr).unwrap();
+                //         return Err(raw_error);
+                //     }
+                // }
+                // Err(error) => {
+                //     return Err(error.to_string());
+                // }
+                Ok(result) => {
+                    return MyOutput {
+                        status: if result.status.success() {
+                            0
+                        } else {
+                            1
+                        },
+                        output: Some(String::from_utf8_lossy(&result.stdout).to_string()),
+                        error: Some(String::from_utf8_lossy(&result.stderr).to_string())
                     }
                 }
                 Err(error) => {
-                    return Err(error.to_string());
+                    return MyOutput {
+                        status: 1,
+                        output: None,
+                        error: Some(error.to_string())
+                    }
                 }
             }
         }
         Err(_) => {
-            return Err(format!("{}: command not found", command_name));
+            return MyOutput{
+                status: 1,
+                output: None,
+                error: Some(format!("{}: command not found", command_name))
+            }
         }
     }
 }

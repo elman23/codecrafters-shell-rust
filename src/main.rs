@@ -4,6 +4,7 @@ use std::io::{self, Write};
 
 mod executor;
 mod builtins;
+mod output;
 
 const EXIT_CMD: &str = "exit";
 const ECHO_CMD: &str = "echo";
@@ -13,6 +14,9 @@ const PWD_CMD: &str = "pwd";
 const CD_CMD: &str = "cd";
 
 fn clean_last_newline(mut s: String) -> String {
+    if s.starts_with('\n') {
+        s.replace_range(0..=0, "");
+    }
     if s.ends_with('\n') {
         let pos = s.len() - 1;
         s.replace_range(pos..=pos, "");
@@ -55,43 +59,79 @@ fn repl_loop() {
         }
 
         if redirect_stdout.is_some() {
-            match result {
-                Ok(output) => {
-                    if output != "" { 
-                        let _ = fs::write(redirect_stdout.unwrap(), clean_last_newline(output)); 
-                    }
-                }
-                Err(error) => {
-                    if error != "" {
-                        println!("{}", clean_last_newline(error));
-                    }
-                }
+            // match result {
+            //     Ok(output) => {
+            //         if output != "" { 
+            //             let _ = fs::write(redirect_stdout.unwrap(), clean_last_newline(output)); 
+            //         }
+            //     }
+            //     Err(error) => {
+            //         if error != "" {
+            //             println!("{}", clean_last_newline(error));
+            //         }
+            //     }
+            // }
+            match result.output {
+                Some(output) => {
+                    let _ = fs::write(redirect_stdout.unwrap(), clean_last_newline(output)); 
+                }, 
+                None => { }
+            }
+            match result.error {
+                Some(error) => {
+                    println!("{}", clean_last_newline(error));
+                }, 
+                None => { }
             }
         } else if redirect_stderr.is_some() {
-            match result {
-                Ok(output) => {
-                    if output != "" {
-                        println!("{}", clean_last_newline(output));
-                    }
-                }
-                Err(error) => {
-                    if error != "" { 
-                        let _ = fs::write(redirect_stderr.unwrap(), clean_last_newline(error)); 
-                    }
-                }
+            // match result {
+            //     Ok(output) => {
+            //         if output != "" {
+            //             println!("{}", clean_last_newline(output));
+            //         }
+            //     }
+            //     Err(error) => {
+            //         if error != "" { 
+            //             let _ = fs::write(redirect_stderr.unwrap(), clean_last_newline(error)); 
+            //         }
+            //     }
+            // }
+            match result.output {
+                Some(output) => {
+                    println!("{}", clean_last_newline(output)); 
+                }, 
+                None => { }
+            }
+            match result.error {
+                Some(error) => {
+                    let _ = fs::write(redirect_stderr.unwrap(), clean_last_newline(error));
+                }, 
+                None => { }
             }
         } else {
-            match result {
-                Ok(output) => {
-                    if output != "" {
-                        println!("{}", clean_last_newline(output));
-                    }
-                }
-                Err(error) => {
-                    if error != "" {
-                        println!("{}", clean_last_newline(error));
-                    }
-                }
+            // match result {
+            //     Ok(output) => {
+            //         if output != "" {
+            //             println!("{}", clean_last_newline(output));
+            //         }
+            //     }
+            //     Err(error) => {
+            //         if error != "" {
+            //             println!("{}", clean_last_newline(error));
+            //         }
+            //     }
+            // }
+            match result.output {
+                Some(output) => {
+                    println!("{}", clean_last_newline(output)); 
+                }, 
+                None => { }
+            }
+            match result.error {
+                Some(error) => {
+                    println!("{}", clean_last_newline(error));
+                }, 
+                None => { }
             }
         }
     }

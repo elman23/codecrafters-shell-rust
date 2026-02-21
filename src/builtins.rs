@@ -8,6 +8,8 @@ use std::path::Path;
 use std::os::unix::fs::PermissionsExt;
 use std::ffi::OsStr;
 
+use crate::output::MyOutput;
+
 const EXIT_CMD: &str = "exit";
 const ECHO_CMD: &str = "echo";
 const TYPE_CMD: &str = "type";
@@ -39,14 +41,14 @@ fn get_directory_content(path: &PathBuf) -> Vec<PathBuf> {
     files
 }
 
-pub fn print_pwd() -> Result<String, String> {
+pub fn print_pwd() -> MyOutput {
     // println!("{}", env::current_dir().unwrap().to_str().unwrap());
     match env::current_dir() {
         Ok(output) => {
-            return Ok(output.into_os_string().into_string().unwrap())
+            return MyOutput { status: 0, output: Some(output.into_os_string().into_string().unwrap()), error: None };
         }
         Err(error) => {
-            return Err(error.to_string())
+            return MyOutput { status: 1, output: None, error: Some(error.to_string()) };
         }
     }
 }
@@ -87,17 +89,17 @@ fn parse_echo_args(input: &str) -> String {
     result
 }
 
-pub fn handle_echo_command(command: &str) -> Result<String, String> {
+pub fn handle_echo_command(command: &str) -> MyOutput {
     let arguments = &command[(ECHO_CMD.len() + 1)..];
     let mut arguments = String::from(arguments);
     arguments = arguments.replace("\"\"", "");
     arguments = arguments.replace("''", "");
     let arguments = parse_echo_args(&arguments);
     // println!("{}", arguments);
-    Ok(arguments)
+    MyOutput { status: 0, output: Some(arguments), error: None }
 }
 
-fn check_type(command: &str) -> Result<String, String> {
+fn check_type(command: &str) -> MyOutput {
     let path_var = env::var_os("PATH").expect("PATH variable not set!");
     let paths: Vec<PathBuf> = env::split_paths(&path_var).collect();
 
@@ -110,7 +112,7 @@ fn check_type(command: &str) -> Result<String, String> {
                 // println!("{} is {}", command, file.to_str().unwrap());
                 // found = true;
                 // break;
-                return Ok(format!("{} is {}", command, file.to_str().unwrap()));
+                return MyOutput { status: 0, output: Some(format!("{} is {}", command, file.to_str().unwrap())), error: None };
             }
         }
     }
@@ -118,13 +120,13 @@ fn check_type(command: &str) -> Result<String, String> {
     // if !found {
         // println!("{}: not found", command);
     // }
-    Err(format!("{}: not found", command))
+    MyOutput{ status: 1, output: None, error: Some(format!("{}: not found", command)) }
 }
 
-pub fn handle_type_command(command: &str) -> Result<String, String> {
+pub fn handle_type_command(command: &str) -> MyOutput {
     let arguments = &command[(TYPE_CMD.len() + 1)..];
     if SHELL_BUILTINS.contains(&arguments) {
-        Ok(format!("{} is a shell builtin", arguments))
+        MyOutput { status: 0, output: Some(format!("{} is a shell builtin", arguments)), error: None }
     } else {
         check_type(arguments)
     }
@@ -134,7 +136,7 @@ fn change_dir(dir: &str) -> Result<(), Error>{
     std::env::set_current_dir(dir)
 }
 
-pub fn handle_cd_command(command: &str) -> Result<String, String> {
+pub fn handle_cd_command(command: &str) -> MyOutput {
     let arguments = &command[(CD_CMD.len() + 1)..];
     let dir = arguments.split_whitespace().next().unwrap();
 
@@ -142,17 +144,17 @@ pub fn handle_cd_command(command: &str) -> Result<String, String> {
         let home_dir = env::var_os("HOME").expect("HOME variable not set!");
         let home_dir = home_dir.to_str().unwrap();
         match change_dir(home_dir) {
-            Ok(_) => { return Ok(String::from("")); }
-            Err(e) => { return Err(e.to_string()); }
+            Ok(_) => { return MyOutput { status: 0, output: None, error: None }; }
+            Err(e) => { return MyOutput { status: 1, output: None, error: Some(e.to_string()) }; }
         }
     }
 
     if dir_exists(dir) {
         match change_dir(dir) {
-            Ok(_) => { return Ok(String::from("")); }
-            Err(e) => { return Err(e.to_string()); }
+            Ok(_) => { return MyOutput {status: 0, output: None, error: None }; }
+            Err(e) => { return MyOutput { status: 1, output: None, error: Some(e.to_string()) }; }
         }
     } else {
-        return Err(format!("cd: {}: No such file or directory", dir));
+        return MyOutput { status: 1, output: None, error: Some(format!("cd: {}: No such file or directory", dir)) };
     }
 }
