@@ -1,6 +1,6 @@
 #[allow(unused_imports)]
 use std::fs;
-use std::io::{self, Write};
+use std::{fs::File, io::{self, Write}};
 
 mod executor;
 mod builtins;
@@ -13,15 +13,14 @@ const PROMPT: &str = "$ ";
 const PWD_CMD: &str = "pwd";
 const CD_CMD: &str = "cd";
 
-fn clean_last_newline(mut s: String) -> String {
-    if s.starts_with('\n') {
-        s.replace_range(0..=0, "");
+fn clean_last_newline(s: String) -> String {
+    s.trim().to_string()
+}
+
+fn print_cleaned(s: String) {
+    if s != "" {
+        println!("{}", clean_last_newline(s));
     }
-    if s.ends_with('\n') {
-        let pos = s.len() - 1;
-        s.replace_range(pos..=pos, "");
-    }
-    s
 }
 
 fn repl_loop() {
@@ -71,15 +70,18 @@ fn repl_loop() {
             //         }
             //     }
             // }
+            let stdout_file = redirect_stdout.unwrap();
+            let _ = File::create(&stdout_file).unwrap();
             match result.output {
                 Some(output) => {
-                    let _ = fs::write(redirect_stdout.unwrap(), clean_last_newline(output)); 
+                    let _ = fs::write(stdout_file, clean_last_newline(output)); 
                 }, 
                 None => { }
             }
             match result.error {
                 Some(error) => {
-                    println!("{}", clean_last_newline(error));
+                    // println!("{}", clean_last_newline(error));
+                    print_cleaned(error);
                 }, 
                 None => { }
             }
@@ -96,15 +98,18 @@ fn repl_loop() {
             //         }
             //     }
             // }
+            let stderr_file = redirect_stderr.unwrap();
+            let _ = File::create(&stderr_file).unwrap();
             match result.output {
                 Some(output) => {
-                    println!("{}", clean_last_newline(output)); 
+                    // println!("{}", clean_last_newline(output));
+                    print_cleaned(output); 
                 }, 
                 None => { }
             }
             match result.error {
                 Some(error) => {
-                    let _ = fs::write(redirect_stderr.unwrap(), clean_last_newline(error));
+                    let _ = fs::write(stderr_file, clean_last_newline(error));
                 }, 
                 None => { }
             }
@@ -123,13 +128,15 @@ fn repl_loop() {
             // }
             match result.output {
                 Some(output) => {
-                    println!("{}", clean_last_newline(output)); 
+                    // println!("{}", clean_last_newline(output)); 
+                    print_cleaned(output);
                 }, 
                 None => { }
             }
             match result.error {
                 Some(error) => {
-                    println!("{}", clean_last_newline(error));
+                    // println!("{}", clean_last_newline(error));
+                    print_cleaned(error);
                 }, 
                 None => { }
             }
