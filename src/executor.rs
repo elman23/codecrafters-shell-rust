@@ -205,15 +205,23 @@ pub fn exec_command(command: &str) -> Result<String, String> {
     match Command::new(&command_name)
         .args(&args)
         .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
         .spawn()
     {
         Ok(child) => {
             match child.wait_with_output() {
                 Ok(output) => {
-                    return Ok(String::from_utf8_lossy(&output.stdout).to_string());
+                    // return Ok(String::from_utf8_lossy(&output.stdout).to_string());
+                    if output.status.success() {
+                        let raw_output = String::from_utf8(output.stdout).unwrap();
+                        Ok(raw_output)
+                    } else {
+                        let raw_error = String::from_utf8(output.stderr).unwrap();
+                        return Err(raw_error);
+                    }
                 }
-                Err(e) => {
-                    return Err(e.to_string());
+                Err(error) => {
+                    return Err(error.to_string());
                 }
             }
         }

@@ -134,22 +134,25 @@ fn change_dir(dir: &str) -> Result<(), Error>{
     std::env::set_current_dir(dir)
 }
 
-pub fn handle_cd_command(command: &str) -> Result<(), Error> {
+pub fn handle_cd_command(command: &str) -> Result<String, String> {
     let arguments = &command[(CD_CMD.len() + 1)..];
     let dir = arguments.split_whitespace().next().unwrap();
 
     if dir == HOME_DIR {
         let home_dir = env::var_os("HOME").expect("HOME variable not set!");
         let home_dir = home_dir.to_str().unwrap();
-        return change_dir(home_dir);
+        match change_dir(home_dir) {
+            Ok(_) => { return Ok(String::from("")); }
+            Err(e) => { return Err(e.to_string()); }
+        }
     }
 
     if dir_exists(dir) {
-        return change_dir(dir);
+        match change_dir(dir) {
+            Ok(_) => { return Ok(String::from("")); }
+            Err(e) => { return Err(e.to_string()); }
+        }
     } else {
-        return Err(io::Error::new(
-            io::ErrorKind::NotFound,
-            format!("cd: {}: No such file or directory", dir),
-        ));
+        return Err(format!("cd: {}: No such file or directory", dir));
     }
 }

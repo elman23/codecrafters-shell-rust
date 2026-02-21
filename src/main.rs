@@ -12,13 +12,21 @@ const PROMPT: &str = "$ ";
 const PWD_CMD: &str = "pwd";
 const CD_CMD: &str = "cd";
 
+fn clean_last_newline(mut s: String) -> String {
+    if s.ends_with('\n') {
+        let pos = s.len() - 1;
+        s.replace_range(pos..=pos, "");
+    }
+    s
+}
+
 fn repl_loop() {
     loop {
         print!("{}", PROMPT);
         io::stdout().flush().unwrap();
         
         let mut command = executor::read_command();
-        let mut result;
+        let result;
 
         // TODO: Check if redirect
         let (redirect_stdout, redirect_stderr, index) = executor::get_stdout_redirect(&command);
@@ -32,8 +40,6 @@ fn repl_loop() {
             }
         }
 
-        println!("Command: {command}");
-
         if command == String::from(EXIT_CMD) {
             break;
         } else if command.starts_with(&*format!("{} ", &ECHO_CMD)) {
@@ -43,41 +49,50 @@ fn repl_loop() {
         } else if command == String::from(PWD_CMD) {
             result = builtins::print_pwd();
         } else if command.starts_with(&*format!("{} ", &CD_CMD)) {
-            match builtins::handle_cd_command(&command) {
-                Ok(_) => {
-                    result = ;
-                }
-                Err(e) => {
-                    result = e.to_string();
-                }
-            }
+            result = builtins::handle_cd_command(&command);
         } else {
             result = executor::exec_command(&command);
         }
-        
-        if result.ends_with('\n') {
-            let pos = result.len() - 1;
-            result.replace_range(pos..=pos, "");
-        }
-
-        if result == "" { 
-            continue;
-        }
-
-        println!("Result: {result}");
 
         if redirect_stdout.is_some() {
             match result {
                 Ok(output) => {
-                    let _ = fs::write(redirect_stdout.unwrap(), result);
+                    if output != "" { 
+                        let _ = fs::write(redirect_stdout.unwrap(), clean_last_newline(output)); 
+                    }
+                }
+                Err(error) => {
+                    if error != "" {
+                        println!("{}", clean_last_newline(error));
+                    }
                 }
             }
-
-
         } else if redirect_stderr.is_some() {
-            let _ = fs::write(redirect_stderr.unwrap(), result);
+            match result {
+                Ok(output) => {
+                    if output != "" {
+                        println!("{}", clean_last_newline(output));
+                    }
+                }
+                Err(error) => {
+                    if error != "" { 
+                        let _ = fs::write(redirect_stderr.unwrap(), clean_last_newline(error)); 
+                    }
+                }
+            }
         } else {
-            println!("{}", result);
+            match result {
+                Ok(output) => {
+                    if output != "" {
+                        println!("{}", clean_last_newline(output));
+                    }
+                }
+                Err(error) => {
+                    if error != "" {
+                        println!("{}", clean_last_newline(error));
+                    }
+                }
+            }
         }
     }
 }
