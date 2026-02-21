@@ -1,7 +1,6 @@
 #[allow(unused_imports)]
 use std::io::{self, Write, Error};
 
-use std::fs::File;
 use std::process::{Command, Stdio};
 
 pub fn read_command() -> String {

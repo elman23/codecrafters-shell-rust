@@ -93,8 +93,6 @@ fn check_type(command: &str) -> String {
     let path_var = env::var_os("PATH").expect("PATH variable not set!");
     let paths: Vec<PathBuf> = env::split_paths(&path_var).collect();
 
-    let mut found = false;
-
     for path in paths {
         let files: Vec<PathBuf> = get_directory_content(&path);
         for file in files {
