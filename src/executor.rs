@@ -118,10 +118,13 @@ fn get_command_path(s: &str) -> String {
     command_path
 }
 
-pub fn get_stdout_redirect(input: &str) -> (Option<String>, Option<usize>) {
-    let mut redirect = false;
-    let mut redirect_file = String::new();
+pub fn get_stdout_redirect(input: &str) -> (Option<String>, Option<String>, Option<usize>) {
+    let mut redirect_stdout = false;
+    let mut redirect_stderr = false;
+    let mut redirect_stdout_file = String::new();
+    let mut redirect_stderr_file = String::new();
     let mut redirect_index: usize = 0;
+    let mut previous: char = ' ';
 
     let mut in_single_quote = false;
     let mut in_double_quote = false;
@@ -129,30 +132,53 @@ pub fn get_stdout_redirect(input: &str) -> (Option<String>, Option<usize>) {
     let mut counter = 0;
     for c in input.chars() {
         counter += 1;
-        if redirect {
-            redirect_file.push(c);
+        if redirect_stdout {
+            redirect_stdout_file.push(c);
+            previous = c;
+            continue;
+        }
+        if redirect_stderr {
+            redirect_stderr_file.push(c);
+            previous = c;
             continue;
         }
         if c == '\'' && !in_double_quote {
             in_single_quote = !in_single_quote;
+            previous = c;
             continue;
         }
         if c == '"' && !in_single_quote {
             in_double_quote = !in_double_quote;
+            previous = c;
+            continue;
+        }
+        if c == '1' {
+            previous = c;
+            continue;
+        }
+        if c == '2' {
+            previous = c;
             continue;
         }
         if c == '>' && !in_single_quote && !in_double_quote {
-            redirect = true;
+            if previous == '2' {
+                redirect_stderr = true;
+            } else {
+                redirect_stdout = true;
+            }
             if redirect_index == 0 {
                 redirect_index = counter;
             }
         }
+        previous = c;
     }
 
-    if redirect {
-        (Some(redirect_file.trim().to_string()), Some(redirect_index))
+    if redirect_stdout {
+        (Some(redirect_stdout_file.trim().to_string()), None, Some(redirect_index))
+    } else if redirect_stderr {
+        (None, Some(redirect_stderr_file.trim().to_string()), Some(redirect_index))
     } else {
-        (None, None)
+        (None, None, None)
     }
 }
 
@@ -165,8 +191,8 @@ pub fn exec_command(command: &str) -> Result<String, String> {
     let args;
 
     // TODO: Handle redirect in main function.
-    let (redirect, index) = get_stdout_redirect(command);
-    if redirect.is_some() {
+    let (redirect_stdout, redirect_stderr, index) = get_stdout_redirect(command);
+    if redirect_stdout.is_some() || redirect_stderr.is_some() {
         let index = index.unwrap() - 1;
         args = &command[command_path.len()..index];
     } else {
@@ -187,12 +213,12 @@ pub fn exec_command(command: &str) -> Result<String, String> {
                     return Ok(String::from_utf8_lossy(&output.stdout).to_string());
                 }
                 Err(e) => {
-                    return Ok(e.to_string());
+                    return Err(e.to_string());
                 }
             }
         }
         Err(_) => {
-            return Ok(format!("{}: command not found", command_name));
+            return Err(format!("{}: command not found", command_name));
         }
     }
 }

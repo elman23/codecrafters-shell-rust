@@ -38,9 +38,16 @@ fn get_directory_content(path: &PathBuf) -> Vec<PathBuf> {
     files
 }
 
-pub fn print_pwd() -> String {
+pub fn print_pwd() -> Result<String, String> {
     // println!("{}", env::current_dir().unwrap().to_str().unwrap());
-    env::current_dir().unwrap().to_str().unwrap().to_string()
+    match env::current_dir() {
+        Ok(output) => {
+            return Ok(output.into_os_string().into_string().unwrap())
+        }
+        Err(error) => {
+            return Err(error.to_string())
+        }
+    }
 }
 
 fn parse_echo_args(input: &str) -> String {
@@ -79,17 +86,17 @@ fn parse_echo_args(input: &str) -> String {
     result
 }
 
-pub fn handle_echo_command(command: &str) -> String {
+pub fn handle_echo_command(command: &str) -> Result<String, String> {
     let arguments = &command[(ECHO_CMD.len() + 1)..];
     let mut arguments = String::from(arguments);
     arguments = arguments.replace("\"\"", "");
     arguments = arguments.replace("''", "");
     let arguments = parse_echo_args(&arguments);
     // println!("{}", arguments);
-    arguments
+    Ok(arguments)
 }
 
-fn check_type(command: &str) -> String {
+fn check_type(command: &str) -> Result<String, String> {
     let path_var = env::var_os("PATH").expect("PATH variable not set!");
     let paths: Vec<PathBuf> = env::split_paths(&path_var).collect();
 
@@ -102,7 +109,7 @@ fn check_type(command: &str) -> String {
                 // println!("{} is {}", command, file.to_str().unwrap());
                 // found = true;
                 // break;
-                return format!("{} is {}", command, file.to_str().unwrap());
+                return Ok(format!("{} is {}", command, file.to_str().unwrap()));
             }
         }
         // if found {
@@ -113,13 +120,13 @@ fn check_type(command: &str) -> String {
     // if !found {
         // println!("{}: not found", command);
     // }
-    format!("{}: not found", command)
+    Err(format!("{}: not found", command))
 }
 
-pub fn handle_type_command(command: &str) -> String {
+pub fn handle_type_command(command: &str) -> Result<String, String> {
     let arguments = &command[(TYPE_CMD.len() + 1)..];
     if SHELL_BUILTINS.contains(&arguments) {
-        format!("{} is a shell builtin", arguments)
+        Ok(format!("{} is a shell builtin", arguments))
     } else {
         check_type(arguments)
     }
