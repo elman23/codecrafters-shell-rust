@@ -42,7 +42,6 @@ fn get_directory_content(path: &PathBuf) -> Vec<PathBuf> {
 }
 
 pub fn print_pwd() -> MyOutput {
-    // println!("{}", env::current_dir().unwrap().to_str().unwrap());
     match env::current_dir() {
         Ok(output) => {
             return MyOutput { status: 0, output: Some(output.into_os_string().into_string().unwrap()), error: None };
@@ -95,7 +94,6 @@ pub fn handle_echo_command(command: &str) -> MyOutput {
     arguments = arguments.replace("\"\"", "");
     arguments = arguments.replace("''", "");
     let arguments = parse_echo_args(&arguments);
-    // println!("{}", arguments);
     MyOutput { status: 0, output: Some(arguments), error: None }
 }
 
@@ -109,17 +107,11 @@ fn check_type(command: &str) -> MyOutput {
             let filename = file.file_stem();
             let executable = is_executable(&file.as_path()).expect("Failed to check execution permissions!");
             if filename == Some(OsStr::new(command)) && executable {
-                // println!("{} is {}", command, file.to_str().unwrap());
-                // found = true;
-                // break;
                 return MyOutput { status: 0, output: Some(format!("{} is {}", command, file.to_str().unwrap())), error: None };
             }
         }
     }
 
-    // if !found {
-        // println!("{}: not found", command);
-    // }
     MyOutput{ status: 1, output: None, error: Some(format!("{}: not found", command)) }
 }
 

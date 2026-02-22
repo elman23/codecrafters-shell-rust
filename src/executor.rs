@@ -212,19 +212,6 @@ pub fn exec_command(command: &str) -> MyOutput {
     {
         Ok(child) => {
             match child.wait_with_output() {
-                // Ok(output) => {
-                //     // return Ok(String::from_utf8_lossy(&output.stdout).to_string());
-                //     if output.status.success() {
-                //         let raw_output = String::from_utf8(output.stdout).unwrap();
-                //         Ok(raw_output)
-                //     } else {
-                //         let raw_error = String::from_utf8(output.stderr).unwrap();
-                //         return Err(raw_error);
-                //     }
-                // }
-                // Err(error) => {
-                //     return Err(error.to_string());
-                // }
                 Ok(result) => {
                     return MyOutput {
                         status: if result.status.success() {

@@ -35,9 +35,8 @@ fn repl_loop() {
         let (redirect_stdout, redirect_stderr, index) = executor::get_stdout_redirect(&command);
         if redirect_stdout.is_some() || redirect_stderr.is_some() {
             let index = index.unwrap() - 1;
-            // args = &command[command_path.len()..index];
             command = command[..index].trim().to_string();
-            // TODO: Fix, dirty.
+            // TODO: Fix, dirty hack.
             if command.ends_with("1") || command.ends_with("2") {
                 command = command[..command.len() - 1].trim().to_string();
             }
@@ -58,18 +57,6 @@ fn repl_loop() {
         }
 
         if redirect_stdout.is_some() {
-            // match result {
-            //     Ok(output) => {
-            //         if output != "" { 
-            //             let _ = fs::write(redirect_stdout.unwrap(), clean_last_newline(output)); 
-            //         }
-            //     }
-            //     Err(error) => {
-            //         if error != "" {
-            //             println!("{}", clean_last_newline(error));
-            //         }
-            //     }
-            // }
             let stdout_file = redirect_stdout.unwrap();
             let _ = File::create(&stdout_file).unwrap();
             match result.output {
@@ -80,29 +67,15 @@ fn repl_loop() {
             }
             match result.error {
                 Some(error) => {
-                    // println!("{}", clean_last_newline(error));
                     print_cleaned(error);
                 }, 
                 None => { }
             }
         } else if redirect_stderr.is_some() {
-            // match result {
-            //     Ok(output) => {
-            //         if output != "" {
-            //             println!("{}", clean_last_newline(output));
-            //         }
-            //     }
-            //     Err(error) => {
-            //         if error != "" { 
-            //             let _ = fs::write(redirect_stderr.unwrap(), clean_last_newline(error)); 
-            //         }
-            //     }
-            // }
             let stderr_file = redirect_stderr.unwrap();
             let _ = File::create(&stderr_file).unwrap();
             match result.output {
                 Some(output) => {
-                    // println!("{}", clean_last_newline(output));
                     print_cleaned(output); 
                 }, 
                 None => { }
@@ -114,28 +87,14 @@ fn repl_loop() {
                 None => { }
             }
         } else {
-            // match result {
-            //     Ok(output) => {
-            //         if output != "" {
-            //             println!("{}", clean_last_newline(output));
-            //         }
-            //     }
-            //     Err(error) => {
-            //         if error != "" {
-            //             println!("{}", clean_last_newline(error));
-            //         }
-            //     }
-            // }
             match result.output {
                 Some(output) => {
-                    // println!("{}", clean_last_newline(output)); 
                     print_cleaned(output);
                 }, 
                 None => { }
             }
             match result.error {
                 Some(error) => {
-                    // println!("{}", clean_last_newline(error));
                     print_cleaned(error);
                 }, 
                 None => { }
