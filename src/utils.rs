@@ -35,6 +35,7 @@ pub fn get_redirect(input: &str) -> RedirectInfo {
         if redirect_stderr {
             if c == '>' {
                 append_stderr = true;
+                continue;
             }
             redirect_stderr_file.push(c);
             previous = c;

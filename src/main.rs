@@ -75,10 +75,16 @@ fn repl_loop() {
                             .create(true)
                             .open(&stdout_file)
                             .unwrap();
-                        writeln!(file, "{}", clean_last_newline(output)).unwrap();
+                        let cleaned_output = clean_last_newline(output);
+                        if cleaned_output != "" {
+                            writeln!(file, "{}", cleaned_output).unwrap();
+                        }
                     } else {
                         let mut file = File::create(stdout_file).unwrap();
-                        writeln!(file, "{}", clean_last_newline(output)).unwrap(); 
+                        let cleaned_output = clean_last_newline(output);
+                        if cleaned_output != "" {
+                            writeln!(file, "{}", cleaned_output).unwrap(); 
+                        }
                     }
                 }, 
                 None => { }
@@ -108,10 +114,16 @@ fn repl_loop() {
                             .create(true)
                             .open(&stderr_file)
                             .unwrap();
-                        writeln!(file, "{}", clean_last_newline(error)).unwrap();  
+                        let cleaned_error = clean_last_newline(error);
+                        if cleaned_error != "" {
+                            writeln!(file, "{}", cleaned_error).unwrap();
+                        }  
                     } else {
                         let mut file = File::create(stderr_file).unwrap();
-                        writeln!(file, "{}", clean_last_newline(error)).unwrap();
+                        let cleaned_error = clean_last_newline(error);
+                        if cleaned_error != "" {
+                            writeln!(file, "{}", cleaned_error).unwrap();
+                        }
                     }
                 }, 
                 None => { }
