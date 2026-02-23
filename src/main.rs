@@ -1,10 +1,11 @@
 #[allow(unused_imports)]
 use std::fs;
-use std::{fs::File, io::{self, Write}};
+use std::{fs::{File, OpenOptions}, io::{self, Write}};
 
 mod executor;
 mod builtins;
 mod output;
+mod utils;
 
 const EXIT_CMD: &str = "exit";
 const ECHO_CMD: &str = "echo";
@@ -32,7 +33,12 @@ fn repl_loop() {
         let result;
 
         // TODO: Check if redirect
-        let (redirect_stdout, redirect_stderr, index) = executor::get_stdout_redirect(&command);
+        let redirect_info = utils::get_redirect(&command);
+        let redirect_stdout = redirect_info.redirect_stdout_file;
+        let redirect_stderr = redirect_info.redirect_stderr_file;
+        let index = redirect_info.file_index_start;
+        let append_stdout = redirect_info.append_stdout;
+        let append_stderr = redirect_info.append_stderr;
         if redirect_stdout.is_some() || redirect_stderr.is_some() {
             let index = index.unwrap() - 1;
             command = command[..index].trim().to_string();
@@ -58,10 +64,22 @@ fn repl_loop() {
 
         if redirect_stdout.is_some() {
             let stdout_file = redirect_stdout.unwrap();
-            let _ = File::create(&stdout_file).unwrap();
+            if !fs::exists(&stdout_file).unwrap() {
+                let _ = File::create(&stdout_file);
+            }
             match result.output {
                 Some(output) => {
-                    let _ = fs::write(stdout_file, clean_last_newline(output)); 
+                    if append_stdout {
+                        let mut file = OpenOptions::new()
+                            .append(true)
+                            .create(true)
+                            .open(&stdout_file)
+                            .unwrap();
+                        writeln!(file, "{}", clean_last_newline(output)).unwrap();
+                    } else {
+                        let mut file = File::create(stdout_file).unwrap();
+                        writeln!(file, "{}", clean_last_newline(output)).unwrap(); 
+                    }
                 }, 
                 None => { }
             }
@@ -73,7 +91,9 @@ fn repl_loop() {
             }
         } else if redirect_stderr.is_some() {
             let stderr_file = redirect_stderr.unwrap();
-            let _ = File::create(&stderr_file).unwrap();
+            if !fs::exists(&stderr_file).unwrap() {
+                let _ = File::create(&stderr_file);
+            }
             match result.output {
                 Some(output) => {
                     print_cleaned(output); 
@@ -82,7 +102,17 @@ fn repl_loop() {
             }
             match result.error {
                 Some(error) => {
-                    let _ = fs::write(stderr_file, clean_last_newline(error));
+                    if append_stderr {
+                        let mut file = OpenOptions::new()
+                            .append(true)
+                            .create(true)
+                            .open(&stderr_file)
+                            .unwrap();
+                        writeln!(file, "{}", clean_last_newline(error)).unwrap();  
+                    } else {
+                        let mut file = File::create(stderr_file).unwrap();
+                        writeln!(file, "{}", clean_last_newline(error)).unwrap();
+                    }
                 }, 
                 None => { }
             }

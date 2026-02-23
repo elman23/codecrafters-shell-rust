@@ -4,6 +4,7 @@ use std::io::{self, Write, Error};
 use std::process::{Command, Stdio};
 
 use crate::output::MyOutput;
+use crate::utils::get_redirect;
 
 pub fn read_command() -> String {
     let mut command: String = String::new();
@@ -120,70 +121,6 @@ fn get_command_path(s: &str) -> String {
     command_path
 }
 
-pub fn get_stdout_redirect(input: &str) -> (Option<String>, Option<String>, Option<usize>) {
-    let mut redirect_stdout = false;
-    let mut redirect_stderr = false;
-    let mut redirect_stdout_file = String::new();
-    let mut redirect_stderr_file = String::new();
-    let mut redirect_index: usize = 0;
-    let mut previous: char = ' ';
-
-    let mut in_single_quote = false;
-    let mut in_double_quote = false;
-
-    let mut counter = 0;
-    for c in input.chars() {
-        counter += 1;
-        if redirect_stdout {
-            redirect_stdout_file.push(c);
-            previous = c;
-            continue;
-        }
-        if redirect_stderr {
-            redirect_stderr_file.push(c);
-            previous = c;
-            continue;
-        }
-        if c == '\'' && !in_double_quote {
-            in_single_quote = !in_single_quote;
-            previous = c;
-            continue;
-        }
-        if c == '"' && !in_single_quote {
-            in_double_quote = !in_double_quote;
-            previous = c;
-            continue;
-        }
-        if c == '1' {
-            previous = c;
-            continue;
-        }
-        if c == '2' {
-            previous = c;
-            continue;
-        }
-        if c == '>' && !in_single_quote && !in_double_quote {
-            if previous == '2' {
-                redirect_stderr = true;
-            } else {
-                redirect_stdout = true;
-            }
-            if redirect_index == 0 {
-                redirect_index = counter;
-            }
-        }
-        previous = c;
-    }
-
-    if redirect_stdout {
-        (Some(redirect_stdout_file.trim().to_string()), None, Some(redirect_index))
-    } else if redirect_stderr {
-        (None, Some(redirect_stderr_file.trim().to_string()), Some(redirect_index))
-    } else {
-        (None, None, None)
-    }
-}
-
 pub fn exec_command(command: &str) -> MyOutput {
 
     let command_path = get_command_path(command);
@@ -193,7 +130,10 @@ pub fn exec_command(command: &str) -> MyOutput {
     let args;
 
     // TODO: Handle redirect in main function.
-    let (redirect_stdout, redirect_stderr, index) = get_stdout_redirect(command);
+    let redirect_info = get_redirect(command);
+    let redirect_stdout = redirect_info.redirect_stdout_file;
+    let redirect_stderr = redirect_info.redirect_stderr_file;
+    let index = redirect_info.file_index_start;
     if redirect_stdout.is_some() || redirect_stderr.is_some() {
         let index = index.unwrap() - 1;
         args = &command[command_path.len()..index];
