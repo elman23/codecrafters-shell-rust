@@ -1,8 +1,8 @@
 #[allow(unused_imports)]
 use std::fs;
-use std::{fs::{File, OpenOptions}, io::{self, Write}};
+use std::{fs::{File, OpenOptions}, io::{Write}};
 
-use rustyline::{Context, Editor, Helper};
+use rustyline::{Editor};
 use crate::my_helper::MyHelper;
 
 mod executor;
@@ -10,6 +10,7 @@ mod builtins;
 mod output;
 mod utils;
 mod my_helper;
+mod path_checker;
 
 const EXIT_CMD: &str = "exit";
 const ECHO_CMD: &str = "echo";

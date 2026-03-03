@@ -5,7 +5,9 @@ use rustyline::completion::{Completer, Pair};
 use rustyline::highlight::Highlighter;
 use rustyline::hint::Hinter;
 use rustyline::validate::{Validator, ValidationContext, ValidationResult};
-use rustyline::{Context, Editor, Helper};
+use rustyline::{Context, Helper};
+
+use crate::path_checker::check_path;
 
 pub struct MyHelper;
 
@@ -31,7 +33,15 @@ impl Completer for MyHelper {
                 io::stdout().flush().unwrap();
             },
             _ => {
-                println!("\x07");
+                let complete_command = check_path(line);
+                match complete_command {
+                    Some(s) => {
+                        completed_line = s;
+                    },
+                    None => {
+                        println!("\x07");
+                    }
+                }
             }
         }
 
