@@ -19,16 +19,22 @@ impl Completer for MyHelper {
         _ctx: &Context<'_>,
     ) -> rustyline::Result<(usize, Vec<Pair>)> {
         let mut completed_line = String::new();
-        if line == "ech" {
-            completed_line = String::from("echo ");
-            print!("o ");
-            io::stdout().flush().unwrap();
+        match line {
+            "ech" => {
+                completed_line = String::from("echo ");
+                print!("o ");
+                io::stdout().flush().unwrap();
+            },
+            "exi" => {
+                completed_line = String::from("exit ");
+                print!("t ");
+                io::stdout().flush().unwrap();
+            },
+            _ => {
+                println!("\x07");
+            }
         }
-        if line == "exi" {
-            completed_line = String::from("exit ");
-            print!("t ");
-            io::stdout().flush().unwrap();
-        }
+
         Ok((0, vec![Pair {display: completed_line.clone(), replacement: completed_line}]))
     }
 }
