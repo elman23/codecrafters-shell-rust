@@ -2,10 +2,14 @@
 use std::fs;
 use std::{fs::{File, OpenOptions}, io::{self, Write}};
 
+use rustyline::{Context, Editor, Helper};
+use crate::my_helper::MyHelper;
+
 mod executor;
 mod builtins;
 mod output;
 mod utils;
+mod my_helper;
 
 const EXIT_CMD: &str = "exit";
 const ECHO_CMD: &str = "echo";
@@ -25,11 +29,14 @@ fn print_cleaned(s: String) {
 }
 
 fn repl_loop() {
+    let mut rl = Editor::new().unwrap();
+    rl.set_helper(Some(MyHelper));    
     loop {
-        print!("{}", PROMPT);
-        io::stdout().flush().unwrap();
+        // print!("{}", PROMPT);
+        // io::stdout().flush().unwrap();
+        let mut command = rl.readline(PROMPT).unwrap();
         
-        let mut command = executor::read_command();
+        // let mut command = executor::read_command();
         let result;
 
         // TODO: Check if redirect
@@ -48,7 +55,7 @@ fn repl_loop() {
             }
         }
 
-        if command == String::from(EXIT_CMD) {
+        if command.trim() == EXIT_CMD {
             break;
         } else if command.starts_with(&*format!("{} ", &ECHO_CMD)) {
             result = builtins::handle_echo_command(&command);
