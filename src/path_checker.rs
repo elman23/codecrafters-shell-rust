@@ -2,32 +2,37 @@ use std::env;
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
 
-pub fn check_path(command: &str) -> Option<String> {
+pub fn check_path(command: &str) -> Option<Vec<String>> {
     let path_var = env::var("PATH").unwrap_or_default();
+    let mut executables: Vec<String> = Vec::new();
 
     for dir in env::split_paths(&path_var) {
-        if dir.is_dir() {
-            for entry in fs::read_dir(&dir).unwrap() {
-                let entry = entry.unwrap();
-                let path = entry.path();
+        // read_dir already implies is_dir; skip the extra syscall
+        let Ok(read_dir) = fs::read_dir(&dir) else { continue };
 
-                if path.is_file() {
-                    let metadata = fs::metadata(&path).unwrap();
-                    let permissions = metadata.permissions();
+        for entry in read_dir.flatten() {
+            // DirEntry::file_name() avoids a full path allocation
+            let file_name = entry.file_name();
+            let name_lossy = file_name.to_string_lossy();
 
-                    // Check executable bits
-                    if permissions.mode() & 0o111 != 0 {
-                        if let Some(name) = path.file_name() {
-                            let complete_name = String::from(name.to_string_lossy());
-                            if complete_name.starts_with(command) {
-                                return Some(format!("{} ", complete_name));
-                            }
-                        }
-                    }
-                }
+            // Filter by prefix *before* any further syscalls
+            if !name_lossy.starts_with(command) {
+                continue;
+            }
+
+            // entry.metadata() uses fstatat() — no path lookup overhead
+            let Ok(metadata) = entry.metadata() else { continue };
+
+            if metadata.is_file() && metadata.permissions().mode() & 0o111 != 0 {
+                executables.push(name_lossy.into_owned());
             }
         }
     }
 
-    None
+    if executables.is_empty() {
+        None
+    } else {
+        executables.sort_unstable(); // faster than stable sort; order ties don't matter
+        Some(executables)
+    }
 }

@@ -154,7 +154,7 @@ pub fn exec_command(command: &str) -> MyOutput {
             match child.wait_with_output() {
                 Ok(result) => {
                     return MyOutput {
-                        status: if result.status.success() {
+                        _status: if result.status.success() {
                             0
                         } else {
                             1
@@ -165,7 +165,7 @@ pub fn exec_command(command: &str) -> MyOutput {
                 }
                 Err(error) => {
                     return MyOutput {
-                        status: 1,
+                        _status: 1,
                         output: None,
                         error: Some(error.to_string())
                     }
@@ -174,7 +174,7 @@ pub fn exec_command(command: &str) -> MyOutput {
         }
         Err(_) => {
             return MyOutput{
-                status: 1,
+                _status: 1,
                 output: None,
                 error: Some(format!("{}: command not found", command_name))
             }

@@ -44,10 +44,10 @@ fn get_directory_content(path: &PathBuf) -> Vec<PathBuf> {
 pub fn print_pwd() -> MyOutput {
     match env::current_dir() {
         Ok(output) => {
-            return MyOutput { status: 0, output: Some(output.into_os_string().into_string().unwrap()), error: None };
+            return MyOutput { _status: 0, output: Some(output.into_os_string().into_string().unwrap()), error: None };
         }
         Err(error) => {
-            return MyOutput { status: 1, output: None, error: Some(error.to_string()) };
+            return MyOutput { _status: 1, output: None, error: Some(error.to_string()) };
         }
     }
 }
@@ -94,7 +94,7 @@ pub fn handle_echo_command(command: &str) -> MyOutput {
     arguments = arguments.replace("\"\"", "");
     arguments = arguments.replace("''", "");
     let arguments = parse_echo_args(&arguments);
-    MyOutput { status: 0, output: Some(arguments), error: None }
+    MyOutput { _status: 0, output: Some(arguments), error: None }
 }
 
 fn check_type(command: &str) -> MyOutput {
@@ -107,18 +107,18 @@ fn check_type(command: &str) -> MyOutput {
             let filename = file.file_stem();
             let executable = is_executable(&file.as_path()).expect("Failed to check execution permissions!");
             if filename == Some(OsStr::new(command)) && executable {
-                return MyOutput { status: 0, output: Some(format!("{} is {}", command, file.to_str().unwrap())), error: None };
+                return MyOutput { _status: 0, output: Some(format!("{} is {}", command, file.to_str().unwrap())), error: None };
             }
         }
     }
 
-    MyOutput{ status: 1, output: None, error: Some(format!("{}: not found", command)) }
+    MyOutput{ _status: 1, output: None, error: Some(format!("{}: not found", command)) }
 }
 
 pub fn handle_type_command(command: &str) -> MyOutput {
     let arguments = &command[(TYPE_CMD.len() + 1)..];
     if SHELL_BUILTINS.contains(&arguments) {
-        MyOutput { status: 0, output: Some(format!("{} is a shell builtin", arguments)), error: None }
+        MyOutput { _status: 0, output: Some(format!("{} is a shell builtin", arguments)), error: None }
     } else {
         check_type(arguments)
     }
@@ -136,17 +136,17 @@ pub fn handle_cd_command(command: &str) -> MyOutput {
         let home_dir = env::var_os("HOME").expect("HOME variable not set!");
         let home_dir = home_dir.to_str().unwrap();
         match change_dir(home_dir) {
-            Ok(_) => { return MyOutput { status: 0, output: None, error: None }; }
-            Err(e) => { return MyOutput { status: 1, output: None, error: Some(e.to_string()) }; }
+            Ok(_) => { return MyOutput { _status: 0, output: None, error: None }; }
+            Err(e) => { return MyOutput { _status: 1, output: None, error: Some(e.to_string()) }; }
         }
     }
 
     if dir_exists(dir) {
         match change_dir(dir) {
-            Ok(_) => { return MyOutput {status: 0, output: None, error: None }; }
-            Err(e) => { return MyOutput { status: 1, output: None, error: Some(e.to_string()) }; }
+            Ok(_) => { return MyOutput {_status: 0, output: None, error: None }; }
+            Err(e) => { return MyOutput { _status: 1, output: None, error: Some(e.to_string()) }; }
         }
     } else {
-        return MyOutput { status: 1, output: None, error: Some(format!("cd: {}: No such file or directory", dir)) };
+        return MyOutput { _status: 1, output: None, error: Some(format!("cd: {}: No such file or directory", dir)) };
     }
 }

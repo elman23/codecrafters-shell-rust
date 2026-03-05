@@ -31,7 +31,8 @@ fn print_cleaned(s: String) {
 
 fn repl_loop() {
     let mut rl = Editor::new().unwrap();
-    rl.set_helper(Some(MyHelper));    
+    let helper = MyHelper::new();
+    rl.set_helper(Some(helper));    
     loop {
         // print!("{}", PROMPT);
         // io::stdout().flush().unwrap();
