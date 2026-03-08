@@ -2,7 +2,7 @@
 use std::fs;
 use std::{fs::{File, OpenOptions}, io::{Write}};
 
-use rustyline::{Editor, config::Configurer};
+use rustyline::Editor;
 use crate::my_helper::MyHelper;
 
 mod executor;
