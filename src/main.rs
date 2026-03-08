@@ -2,7 +2,7 @@
 use std::fs;
 use std::{fs::{File, OpenOptions}, io::{Write}};
 
-use rustyline::{Editor};
+use rustyline::{Editor, config::Configurer};
 use crate::my_helper::MyHelper;
 
 mod executor;
@@ -30,7 +30,8 @@ fn print_cleaned(s: String) {
 }
 
 fn repl_loop() {
-    let mut rl = Editor::new().unwrap();
+    let config = rustyline::Config::builder().completion_type(rustyline::CompletionType::List).build();
+    let mut rl = Editor::with_config(config).unwrap();
     let helper = MyHelper::new();
     rl.set_helper(Some(helper));    
     loop {

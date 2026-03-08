@@ -18,7 +18,7 @@ const CD_CMD: &str = "cd";
 const HOME_DIR: &str = "~";
 
 // TODO: Improve. This requires that each new built-in command shall be added manually.
-const SHELL_BUILTINS: &[&str] = &[EXIT_CMD, ECHO_CMD, TYPE_CMD, PWD_CMD, CD_CMD];
+pub const SHELL_BUILTINS: &[&str] = &[EXIT_CMD, ECHO_CMD, TYPE_CMD, PWD_CMD, CD_CMD];
 
 fn dir_exists(dir: &str) -> bool {
     let dir_path = Path::new(dir);
