@@ -35,11 +35,8 @@ fn repl_loop() {
     let helper = MyHelper::new();
     rl.set_helper(Some(helper));    
     loop {
-        // print!("{}", PROMPT);
-        // io::stdout().flush().unwrap();
         let mut command = rl.readline(PROMPT).unwrap();
         
-        // let mut command = executor::read_command();
         let result;
 
         // TODO: Check if redirect

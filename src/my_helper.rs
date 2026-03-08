@@ -1,12 +1,5 @@
-use std::io;
-use std::io::{Write};
-
-// use rustyline::highlight::Highlighter;
-// use rustyline::hint::Hinter;
-// use rustyline::validate::{Validator, ValidationContext, ValidationResult};
 use rustyline::{Context};
 use rustyline::completion::{Completer, FilenameCompleter, Pair};
-use crate::path_checker::check_path;
 use crate::builtins::SHELL_BUILTINS;
 use crate::path_checker::list_executables;
 

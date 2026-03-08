@@ -6,13 +6,6 @@ use std::process::{Command, Stdio};
 use crate::output::MyOutput;
 use crate::utils::get_redirect;
 
-// pub fn read_command() -> String {
-//     let mut command: String = String::new();
-//     io::stdin().read_line(&mut command).unwrap();
-//     command = String::from(command.trim());
-//     command
-// }
-
 fn split_char(ch: char, input: &str) -> Vec<String> {
     let double_quotes = ch == '"';
     
