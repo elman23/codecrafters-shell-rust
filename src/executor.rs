@@ -1,6 +1,6 @@
 #[allow(unused_imports)]
 use std::io::{self, Write, Error};
-
+use std::io::{Read, Stderr};
 use std::process::{Command, Stdio};
 
 use crate::output::MyOutput;
@@ -152,24 +152,65 @@ pub fn exec_command(command: &str, input: Option<String>) -> MyOutput {
         None => { }
     }
 
-    match my_command.wait_with_output() {
-        Ok(result) => {
-            return MyOutput {
-                status: if result.status.success() {
-                    0
-                } else {
-                    1
-                },
-                output: Some(String::from_utf8_lossy(&result.stdout).to_string()),
-                error: Some(String::from_utf8_lossy(&result.stderr).to_string())
-            }
+    // match my_command.wait_with_output() {
+    //     Ok(result) => {
+    //         return MyOutput {
+    //             status: if result.status.success() {
+    //                 0
+    //             } else {
+    //                 1
+    //             },
+    //             output: Some(String::from_utf8_lossy(&result.stdout).to_string()),
+    //             error: Some(String::from_utf8_lossy(&result.stderr).to_string())
+    //         }
+    //     }
+    //     Err(error) => {
+    //         return MyOutput {
+    //             status: 1,
+    //             output: None,
+    //             error: Some(error.to_string())
+    //         }
+    //     }
+    // }
+
+    let mut stdout = my_command.stdout.take().unwrap();
+    let mut stderr = my_command.stderr.take().unwrap();
+    
+    let mut out_buf = Vec::new();
+    let mut err_buf = Vec::new();
+
+    stdout.read_to_end(&mut out_buf).unwrap();
+    stderr.read_to_end(&mut err_buf).unwrap();
+
+    // let status = my_command.wait().unwrap();
+    if let Some(_) = my_command.stderr.take() {
+        MyOutput {
+            status: 1,
+            output: if out_buf.is_empty() {
+                None
+            } else {
+                Some(String::from_utf8_lossy(&out_buf).into_owned())
+            },
+            error: if err_buf.is_empty() {
+                None
+            } else {
+                Some(String::from_utf8_lossy(&err_buf).into_owned())
+            },
         }
-        Err(error) => {
-            return MyOutput {
-                status: 1,
-                output: None,
-                error: Some(error.to_string())
-            }
+    } else {
+        MyOutput {
+            status: 0,
+            output: if out_buf.is_empty() {
+                None
+            } else {
+                Some(String::from_utf8_lossy(&out_buf).into_owned())
+            },
+            error: if err_buf.is_empty() {
+                None
+            } else {
+                Some(String::from_utf8_lossy(&err_buf).into_owned())
+            },
         }
     }
+    
 }

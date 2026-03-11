@@ -20,7 +20,8 @@ const PWD_CMD: &str = "pwd";
 const CD_CMD: &str = "cd";
 
 fn clean_last_newline(s: &String) -> String {
-    s.trim().to_string()
+    // s.trim().to_string()
+    s.strip_suffix('\n').unwrap_or(s).to_string()
 }
 
 fn print_cleaned(s: &String) {
@@ -42,14 +43,15 @@ fn repl_loop() {
                         .collect(); 
         let mut previous_output: MyOutput = MyOutput { status: 0, output: None, error: None };
         let mut count = 1;
+        let l = commands.len();
         for command in commands {
-            let mut input: Option<String>;
+            let input: Option<String>;
             if count > 1 {
                 input = previous_output.output;
             } else {
                 input = None;
             }
-            let my_output = execute(command.to_string(), input);
+            let my_output = execute(command.to_string(), input, count < l);
             if my_output.status == 1 {
                 break;
             }
@@ -59,7 +61,7 @@ fn repl_loop() {
     }
 }
 
-fn execute(mut command: String, input: Option<String>) -> MyOutput {
+fn execute(mut command: String, input: Option<String>, piped: bool) -> MyOutput {
     let result;
 
     // TODO: Check if redirect
@@ -161,17 +163,19 @@ fn execute(mut command: String, input: Option<String>) -> MyOutput {
             }
         }
     } else {
-        match result.output {
-            Some(ref output) => {
-                print_cleaned(output);
-            }, 
-            None => { }
-        }
-        match result.error {
-            Some(ref error) => {
-                print_cleaned(error);
-            }, 
-            None => {
+        if !piped {
+            match result.output {
+                Some(ref output) => {
+                    print_cleaned(output);
+                }, 
+                None => { }
+            }
+            match result.error {
+                Some(ref error) => {
+                    print_cleaned(error);
+                }, 
+                None => {
+                }
             }
         }
     }
