@@ -1,7 +1,7 @@
 #[allow(unused_imports)]
 use std::fs;
 use std::{fs::{File, OpenOptions}, io::{Write}};
-
+use std::process::Stdio;
 use rustyline::Editor;
 use crate::{my_helper::MyHelper, output::MyOutput};
 
@@ -61,7 +61,7 @@ fn repl_loop() {
     }
 }
 
-fn execute(mut command: String, input: Option<String>, piped: bool) -> MyOutput {
+fn execute(mut command: String, input: Option<Stdio>, piped: bool) -> MyOutput {
     let result;
 
     // TODO: Check if redirect
@@ -80,6 +80,8 @@ fn execute(mut command: String, input: Option<String>, piped: bool) -> MyOutput 
         }
     }
 
+    let mut stdout: Stdio;
+    let mut stderr: Stdio;
     if command.trim() == EXIT_CMD {
         return MyOutput { status: 1, output: None, error: None };
     } else if command.starts_with(&*format!("{} ", &ECHO_CMD)) {
@@ -91,7 +93,7 @@ fn execute(mut command: String, input: Option<String>, piped: bool) -> MyOutput 
     } else if command.starts_with(&*format!("{} ", &CD_CMD)) {
         result = builtins::handle_cd_command(&command);
     } else {
-        result = executor::exec_command(&command, input);
+        (stdout, stderr) = executor::exec_command(&command, input);
     }
 
     if redirect_stdout.is_some() {
