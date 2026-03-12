@@ -137,7 +137,8 @@ pub fn exec_command(command: &str, input: Option<Stdio>) -> (Stdio, Stdio) {
     let args = args.trim_start();
     let args = get_command_args(args);
 
-    let my_command: &mut Command = Command::new(&command_name)
+    let mut binding = Command::new(command_name);
+    let my_command: &mut Command = binding
         .args(&args)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());

@@ -1,6 +1,7 @@
 #[allow(unused_imports)]
 use std::fs;
-use std::{fs::{File, OpenOptions}, io::{Write}};
+use std::io;
+use std::{fs::{File, OpenOptions}, io::Write, process::{Child, ChildStdout, Command}};
 use std::process::Stdio;
 use rustyline::Editor;
 use crate::{my_helper::MyHelper, output::MyOutput};
@@ -41,28 +42,37 @@ fn repl_loop() {
                         .split('|')
                         .map(|c| c.trim())
                         .collect(); 
-        let mut previous_output: MyOutput = MyOutput { status: 0, output: None, error: None };
-        let mut count = 1;
-        let l = commands.len();
-        for command in commands {
-            let input: Option<String>;
-            if count > 1 {
-                input = previous_output.output;
-            } else {
-                input = None;
+        // let mut previous_output: MyOutput = MyOutput { status: 0, output: None, error: None };
+        // let mut count = 1;
+        // let l = commands.len();
+        // for command in commands {
+        //     let input: Option<Stdio>;
+        //     if count > 1 {
+        //         input = previous_output.output;
+        //     } else {
+        //         input = None;
+        //     }
+        //     let my_output = execute(command.to_string(), input, count < l);
+        //     if my_output.status == 1 {
+        //         break;
+        //     }
+        //     previous_output = my_output;
+        //     count += 1;
+        // }
+        let output = execute_piped(commands);
+        match output {
+            Ok(o) => {
+                println!("{}", String::from_utf8_lossy(&o.stdout));
+            },
+            Err(e) => {
+                eprintln!("Error: {}", e);
             }
-            let my_output = execute(command.to_string(), input, count < l);
-            if my_output.status == 1 {
-                break;
-            }
-            previous_output = my_output;
-            count += 1;
         }
     }
 }
 
 fn execute(mut command: String, input: Option<Stdio>, piped: bool) -> MyOutput {
-    let result;
+    let mut result = MyOutput { status: 0, output: None, error: None };
 
     // TODO: Check if redirect
     let redirect_info = utils::get_redirect(&command);
@@ -182,6 +192,48 @@ fn execute(mut command: String, input: Option<Stdio>, piped: bool) -> MyOutput {
         }
     }
     result
+}
+
+fn execute_piped(cmds: Vec<&str>) -> io::Result<std::process::Output> {
+
+    let mut children: Vec<Child> = Vec::new();
+    let mut previous: Option<ChildStdout> = None;
+
+    for (i, c) in cmds.iter().enumerate() {
+        let split: Vec<&str> = c.split(" ").collect();
+
+        let mut cmd = Command::new(split[0]);
+        let mut j = 1;
+        while j < split.len() {
+            cmd.arg(split[j]);
+            j += 1;
+        }
+
+        if let Some(stdin) = previous.take() {
+            cmd.stdin(stdin);
+        }
+
+        if i < cmds.len() - 1 {
+            cmd.stdout(Stdio::piped());
+        }
+
+        let mut child = cmd.spawn()?;
+
+        if i < cmds.len() - 1 {
+            previous = child.stdout.take();
+        }
+
+        children.push(child);
+    }
+
+    let last = children.pop().unwrap();
+    let output = last.wait_with_output()?;
+
+    for mut child in children {
+        child.wait().unwrap();
+    }
+
+    Ok(output)
 }
 
 fn main() {
