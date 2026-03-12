@@ -3,22 +3,50 @@ use std::io::{self, Write, Error};
 
 use std::fs;
 use std::env;
+use std::os::unix::process::ExitStatusExt;
 use std::path::PathBuf;
 use std::path::Path;
 use std::os::unix::fs::PermissionsExt;
 use std::ffi::OsStr;
+use std::process::Output;
 
-use crate::output::MyOutput;
-
-const EXIT_CMD: &str = "exit";
-const ECHO_CMD: &str = "echo";
-const TYPE_CMD: &str = "type";
-const PWD_CMD: &str = "pwd";
-const CD_CMD: &str = "cd";
-const HOME_DIR: &str = "~";
+pub const EXIT_CMD: &str = "exit";
+pub const ECHO_CMD: &str = "echo";
+pub const TYPE_CMD: &str = "type";
+pub const PWD_CMD: &str = "pwd";
+pub const CD_CMD: &str = "cd";
+pub const HOME_DIR: &str = "~";
 
 // TODO: Improve. This requires that each new built-in command shall be added manually.
 pub const SHELL_BUILTINS: &[&str] = &[EXIT_CMD, ECHO_CMD, TYPE_CMD, PWD_CMD, CD_CMD];
+
+pub fn is_builtin(cmd: &str) -> bool {
+    SHELL_BUILTINS.contains(&cmd)
+}
+
+pub fn execute_builtin(command: &str) -> Output {
+    if command.trim() == EXIT_CMD {
+        Output { 
+            status: ExitStatusExt::from_raw(1), 
+            stdout: vec![], 
+            stderr: vec![] 
+        }
+    } else if command.starts_with(&*format!("{} ", &ECHO_CMD)) {
+        handle_echo_command(&command)
+    } else if command.starts_with(&*format!("{} ", &TYPE_CMD)) {
+        handle_type_command(&command)
+    } else if command == String::from(PWD_CMD) {
+        print_pwd()
+    } else if command.starts_with(&*format!("{} ", &CD_CMD)) {
+        handle_cd_command(&command)
+    } else {
+        Output { 
+            status: ExitStatusExt::from_raw(0), 
+            stdout: vec![], 
+            stderr: vec![]
+        }
+    }
+}
 
 fn dir_exists(dir: &str) -> bool {
     let dir_path = Path::new(dir);
@@ -41,13 +69,21 @@ fn get_directory_content(path: &PathBuf) -> Vec<PathBuf> {
     files
 }
 
-pub fn print_pwd() -> MyOutput {
+pub fn print_pwd() -> Output {
     match env::current_dir() {
         Ok(output) => {
-            return MyOutput { status: 0, output: Some(output.into_os_string().into_string().unwrap()), error: None };
+            return Output { 
+                status: ExitStatusExt::from_raw(0), 
+                stdout: Vec::from(output.into_os_string().into_string().unwrap().as_bytes()), 
+                stderr: vec![] 
+            };
         }
         Err(error) => {
-            return MyOutput { status: 1, output: None, error: Some(error.to_string()) };
+            return Output {
+                status: ExitStatusExt::from_raw(1), 
+                stdout: vec![], 
+                stderr: Vec::from(error.to_string().as_bytes()) 
+            };
         }
     }
 }
@@ -88,16 +124,20 @@ fn parse_echo_args(input: &str) -> String {
     result
 }
 
-pub fn handle_echo_command(command: &str) -> MyOutput {
+pub fn handle_echo_command(command: &str) -> Output {
     let arguments = &command[(ECHO_CMD.len() + 1)..];
     let mut arguments = String::from(arguments);
     arguments = arguments.replace("\"\"", "");
     arguments = arguments.replace("''", "");
     let arguments = parse_echo_args(&arguments);
-    MyOutput { status: 0, output: Some(arguments), error: None }
+    Output { 
+        status: ExitStatusExt::from_raw(0), 
+        stdout: Vec::from(arguments.as_bytes()), 
+        stderr: vec![]
+    }
 }
 
-fn check_type(command: &str) -> MyOutput {
+fn check_type(command: &str) -> Output {
     let path_var = env::var_os("PATH").expect("PATH variable not set!");
     let paths: Vec<PathBuf> = env::split_paths(&path_var).collect();
 
@@ -107,18 +147,30 @@ fn check_type(command: &str) -> MyOutput {
             let filename = file.file_stem();
             let executable = is_executable(&file.as_path()).expect("Failed to check execution permissions!");
             if filename == Some(OsStr::new(command)) && executable {
-                return MyOutput { status: 0, output: Some(format!("{} is {}", command, file.to_str().unwrap())), error: None };
+                return Output { 
+                    status: ExitStatusExt::from_raw(0), 
+                    stdout: Vec::from(format!("{} is {}", command, file.to_str().unwrap()).as_bytes()),
+                    stderr: vec![] 
+                };
             }
         }
     }
 
-    MyOutput{ status: 1, output: None, error: Some(format!("{}: not found", command)) }
+    Output{ 
+        status: ExitStatusExt::from_raw(1), 
+        stdout: vec![], 
+        stderr: Vec::from(format!("{}: not found", command).as_bytes()) 
+    }
 }
 
-pub fn handle_type_command(command: &str) -> MyOutput {
+pub fn handle_type_command(command: &str) -> Output {
     let arguments = &command[(TYPE_CMD.len() + 1)..];
     if SHELL_BUILTINS.contains(&arguments) {
-        MyOutput { status: 0, output: Some(format!("{} is a shell builtin", arguments)), error: None }
+        Output { 
+            status: ExitStatusExt::from_raw(0), 
+            stdout: Vec::from(format!("{} is a shell builtin", arguments).as_bytes()), 
+            stderr: vec![] 
+        }
     } else {
         check_type(arguments)
     }
@@ -128,7 +180,7 @@ fn change_dir(dir: &str) -> Result<(), Error>{
     std::env::set_current_dir(dir)
 }
 
-pub fn handle_cd_command(command: &str) -> MyOutput {
+pub fn handle_cd_command(command: &str) -> Output {
     let arguments = &command[(CD_CMD.len() + 1)..];
     let dir = arguments.split_whitespace().next().unwrap();
 
@@ -136,17 +188,45 @@ pub fn handle_cd_command(command: &str) -> MyOutput {
         let home_dir = env::var_os("HOME").expect("HOME variable not set!");
         let home_dir = home_dir.to_str().unwrap();
         match change_dir(home_dir) {
-            Ok(_) => { return MyOutput { status: 0, output: None, error: None }; }
-            Err(e) => { return MyOutput { status: 1, output: None, error: Some(e.to_string()) }; }
+            Ok(_) => { 
+                return Output { 
+                    status: ExitStatusExt::from_raw(0), 
+                    stdout: vec![], 
+                    stderr: vec![] 
+                }; 
+            }
+            Err(e) => { 
+                return Output { 
+                    status: ExitStatusExt::from_raw(0), 
+                    stdout: vec![], 
+                    stderr: Vec::from(e.to_string().as_bytes()) 
+                }; 
+            }
         }
     }
 
     if dir_exists(dir) {
         match change_dir(dir) {
-            Ok(_) => { return MyOutput {status: 0, output: None, error: None }; }
-            Err(e) => { return MyOutput { status: 1, output: None, error: Some(e.to_string()) }; }
+            Ok(_) => { 
+                return Output {
+                    status: ExitStatusExt::from_raw(0), 
+                    stdout: vec![], 
+                    stderr: vec![] 
+                }; 
+            }
+            Err(e) => { 
+                return Output { 
+                    status: ExitStatusExt::from_raw(1), 
+                    stdout: vec![], 
+                    stderr: Vec::from(e.to_string().as_bytes()) 
+                };
+            }
         }
     } else {
-        return MyOutput { status: 1, output: None, error: Some(format!("cd: {}: No such file or directory", dir)) };
+        return Output { 
+            status: ExitStatusExt::from_raw(1), 
+            stdout: vec![], 
+            stderr: Vec::from(format!("cd: {}: No such file or directory", dir).as_bytes()) 
+        };
     }
 }

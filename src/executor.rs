@@ -1,10 +1,25 @@
+use std::arch::x86_64::CpuidResult;
+use std::fs::{self, File, OpenOptions};
 #[allow(unused_imports)]
 use std::io::{self, Write, Error};
-use std::io::{Read, Stderr};
-use std::process::{Command, Stdio};
+use std::os::unix::process::ExitStatusExt;
+use std::process::{Child, ChildStdout, Command, ExitCode, ExitStatus, Output, Stdio};
+use std::vec;
 
+use crate::builtins;
 use crate::output::MyOutput;
-use crate::utils::get_redirect;
+use crate::utils::{self, get_redirect};
+
+fn clean_last_newline(s: &String) -> String {
+    // s.trim().to_string()
+    s.strip_suffix('\n').unwrap_or(s).to_string()
+}
+
+fn print_cleaned(s: &String) {
+    if s != "" {
+        println!("{}", clean_last_newline(s));
+    }
+}
 
 fn split_char(ch: char, input: &str) -> Vec<String> {
     let double_quotes = ch == '"';
@@ -154,4 +169,155 @@ pub fn exec_command(command: &str, input: Option<Stdio>) -> (Stdio, Stdio) {
 
     (stdout.into(), stderr.into())
     
+}
+
+pub fn execute(mut command: String) -> ExitStatus {
+    let result: Output;
+
+    // TODO: Check if redirect
+    let redirect_info = utils::get_redirect(&command);
+    let redirect_stdout = redirect_info.redirect_stdout_file;
+    let redirect_stderr = redirect_info.redirect_stderr_file;
+    let index = redirect_info.file_index_start;
+    let append_stdout = redirect_info.append_stdout;
+    let append_stderr = redirect_info.append_stderr;
+    if redirect_stdout.is_some() || redirect_stderr.is_some() {
+        let index = index.unwrap() - 1;
+        command = command[..index].trim().to_string();
+        // TODO: Fix, dirty hack.
+        if command.ends_with("1") || command.ends_with("2") {
+            command = command[..command.len() - 1].trim().to_string();
+        }
+    }
+
+    if builtins::is_builtin(&command.split(' ').next().unwrap()) {
+        result = builtins::execute_builtin(&command);
+    } else {
+        let cmd = command.clone(); // TODO: Fix.
+        match execute_piped(command) {
+            Ok(r) => {
+                result = r;
+            },
+            Err(e) => {
+                // eprint!("{}", e);
+                // TODO: Flush?
+                // print_cleaned(&format!("{}: command not found", cmd));
+                println!("{}: command not found", cmd);
+                // std::io::stdout().flush();
+                // let _ = std::io::stderr().flush();
+                return ExitStatusExt::from_raw(0);
+            }
+        }
+    }
+
+    if redirect_stdout.is_some() {
+        let stdout_file = redirect_stdout.unwrap();
+        if !fs::exists(&stdout_file).unwrap() {
+            let _ = File::create(&stdout_file);
+        }
+        if !result.stdout.is_empty() {
+            if append_stdout {
+                let mut file = OpenOptions::new()
+                    .append(true)
+                    .create(true)
+                    .open(&stdout_file)
+                    .unwrap();
+                let cleaned_output = clean_last_newline(&String::from_utf8(result.stdout).unwrap());
+                if cleaned_output != "" {
+                    writeln!(file, "{}", cleaned_output).unwrap();
+                }
+            } else {
+                let mut file = File::create(stdout_file).unwrap();
+                let cleaned_output = clean_last_newline(&String::from_utf8(result.stdout).unwrap());
+                if cleaned_output != "" {
+                    writeln!(file, "{}", cleaned_output).unwrap(); 
+                }
+            }
+        }
+        if !result.stderr.is_empty() {
+            print_cleaned(&String::from_utf8(result.stderr).unwrap());
+        }
+    } else if redirect_stderr.is_some() {
+        let stderr_file = redirect_stderr.unwrap();
+        if !fs::exists(&stderr_file).unwrap() {
+            let _ = File::create(&stderr_file);
+        }
+        if !result.stdout.is_empty() {
+            print_cleaned(&String::from_utf8(result.stdout).unwrap()); 
+        }
+        if !result.stderr.is_empty() {
+            if append_stderr {
+                let mut file = OpenOptions::new()
+                    .append(true)
+                    .create(true)
+                    .open(&stderr_file)
+                    .unwrap();
+                let cleaned_error = clean_last_newline(&String::from_utf8(result.stderr).unwrap());
+                if cleaned_error != "" {
+                    writeln!(file, "{}", cleaned_error).unwrap();
+                }  
+            } else {
+                let mut file = File::create(stderr_file).unwrap();
+                let cleaned_error = clean_last_newline(&String::from_utf8(result.stderr).unwrap());
+                if cleaned_error != "" {
+                    writeln!(file, "{}", cleaned_error).unwrap();
+                }
+            }
+        }
+    } else {
+        if !result.stdout.is_empty() {
+            print_cleaned(&String::from_utf8(result.stdout).unwrap());
+        }
+        if !result.stderr.is_empty() {
+            print_cleaned(&String::from_utf8(result.stderr).unwrap());
+        }
+    }
+    result.status
+}
+
+pub fn execute_piped(input: String) -> io::Result<std::process::Output> {
+
+    let cmds: Vec<&str> = input
+                        .split('|')
+                        .map(|c| c.trim())
+                        .collect(); 
+
+    let mut children: Vec<Child> = Vec::new();
+    let mut previous: Option<ChildStdout> = None;
+
+    for (i, c) in cmds.iter().enumerate() {
+        let split: Vec<&str> = c.split(" ").collect();
+
+        let mut cmd = Command::new(split[0]);
+        let mut j = 1;
+        while j < split.len() {
+            cmd.arg(split[j]);
+            j += 1;
+        }
+
+        if let Some(stdin) = previous.take() {
+            cmd.stdin(stdin);
+        }
+
+        if i < cmds.len() - 1 {
+            cmd.stdout(Stdio::piped());
+        }
+
+        let mut child = cmd.spawn()?;
+
+        if i < cmds.len() - 1 {
+            previous = child.stdout.take();
+        }
+
+        children.push(child);
+    }
+
+    let last = children.pop().unwrap();
+    let output = last.wait_with_output()?;
+
+    for mut child in children {
+        child.wait().unwrap();
+    }
+
+    Ok(output)
 }
