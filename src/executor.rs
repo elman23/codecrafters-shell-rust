@@ -289,14 +289,25 @@ pub fn execute_piped(input: String) -> io::Result<std::process::Output> {
     let mut previous: Option<ChildStdout> = None;
 
     for (i, c) in cmds.iter().enumerate() {
-        let split: Vec<&str> = c.split(" ").collect();
+        // let split: Vec<&str> = c.split(" ").collect();
 
-        let mut cmd = Command::new(split[0]);
-        let mut j = 1;
-        while j < split.len() {
-            cmd.arg(split[j]);
-            j += 1;
-        }
+        // Command
+        // let cmd_name = split[0];
+        let command_path = get_command_path(c);
+        let cmd_name = command_path.split("/").last().unwrap_or("Failed to parse command name");
+        let cmd_name = cleanup_name(cmd_name);
+
+        
+        let mut cmd = Command::new(&cmd_name);
+        
+        // Arguments - TODO: FIX
+        let args = get_command_args(&c[command_path.len()..]);
+        cmd.args(args);
+        // let mut j = 1;
+        // while j < split.len() {
+        //     cmd.arg(split[j]);
+        //     j += 1;
+        // }
 
         if let Some(stdin) = previous.take() {
             cmd.stdin(stdin);
