@@ -173,7 +173,7 @@ pub fn exec_command(command: &str, input: Option<Stdio>) -> (Stdio, Stdio) {
 }
 
 pub fn execute(mut command: String) -> ExitStatus {
-    let result: Output;
+    let mut result: Output;
 
     // TODO: Check if redirect
     let redirect_info = utils::get_redirect(&command);
@@ -198,6 +198,7 @@ pub fn execute(mut command: String) -> ExitStatus {
         match execute_piped(command) {
             Ok(r) => {
                 result = r;
+                result.status = ExitStatusExt::from_raw(0);
             },
             Err(e) => {
                 // eprint!("{}", e);
@@ -238,7 +239,7 @@ pub fn execute(mut command: String) -> ExitStatus {
             }
         }
         if !result.stderr.is_empty() {
-            writeln!(std::io::stderr(), "{}", &String::from_utf8(result.stderr).unwrap());
+            writeln!(std::io::stderr(), "{}", &String::from_utf8(result.stderr).unwrap().trim());
         }
     } else if redirect_stderr.is_some() {
         let stderr_file = redirect_stderr.unwrap();
@@ -313,9 +314,10 @@ pub fn execute_piped(input: String) -> io::Result<std::process::Output> {
             cmd.stdin(stdin);
         }
 
-        if i < cmds.len() - 1 {
-            cmd.stdout(Stdio::piped());
-        }
+        // if i < cmds.len() - 1 {
+        cmd.stdout(Stdio::piped());
+        cmd.stderr(Stdio::piped());
+        // }
 
         let mut child = cmd.spawn()?;
 
