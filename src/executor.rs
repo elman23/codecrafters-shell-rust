@@ -18,7 +18,7 @@ fn clean_last_newline(s: &String) -> String {
 
 fn print_cleaned(s: &String) {
     if s != "" {
-        writeln!(std::io::stdout(), "{}", clean_last_newline(s));
+        let _ = writeln!(std::io::stdout(), "{}", clean_last_newline(s));
     }
 }
 
@@ -208,7 +208,7 @@ pub fn execute(mut command: String) -> ExitStatus {
                 // let _ = std::io::stdout().flush();
                 // let _ = std::io::stderr().flush();
                 // print_cleaned(&format!("{}: command not found", cmd));
-                writeln!(std::io::stderr(), "{}: command not found", cmd);
+                let _ = writeln!(std::io::stderr(), "{}: command not found", cmd);
                 return ExitStatusExt::from_raw(0);
             }
         }
@@ -228,18 +228,18 @@ pub fn execute(mut command: String) -> ExitStatus {
                     .unwrap();
                 let cleaned_output = clean_last_newline(&String::from_utf8(result.stdout).unwrap());
                 if cleaned_output != "" {
-                    writeln!(file, "{}", cleaned_output).unwrap();
+                    let _ = writeln!(file, "{}", cleaned_output).unwrap();
                 }
             } else {
                 let mut file = File::create(stdout_file).unwrap();
                 let cleaned_output = clean_last_newline(&String::from_utf8(result.stdout).unwrap());
                 if cleaned_output != "" {
-                    writeln!(file, "{}", cleaned_output).unwrap(); 
+                    let _ = writeln!(file, "{}", cleaned_output).unwrap(); 
                 }
             }
         }
         if !result.stderr.is_empty() {
-            writeln!(std::io::stderr(), "{}", &String::from_utf8(result.stderr).unwrap().trim());
+            let _ = writeln!(std::io::stderr(), "{}", &String::from_utf8(result.stderr).unwrap().trim());
         }
     } else if redirect_stderr.is_some() {
         let stderr_file = redirect_stderr.unwrap();
@@ -258,13 +258,13 @@ pub fn execute(mut command: String) -> ExitStatus {
                     .unwrap();
                 let cleaned_error = clean_last_newline(&String::from_utf8(result.stderr).unwrap());
                 if cleaned_error != "" {
-                    writeln!(file, "{}", cleaned_error).unwrap();
+                    let _ = writeln!(file, "{}", cleaned_error).unwrap();
                 }  
             } else {
                 let mut file = File::create(stderr_file).unwrap();
                 let cleaned_error = clean_last_newline(&String::from_utf8(result.stderr).unwrap());
                 if cleaned_error != "" {
-                    writeln!(file, "{}", cleaned_error).unwrap();
+                    let _ = writeln!(file, "{}", cleaned_error).unwrap();
                 }
             }
         }
@@ -273,7 +273,7 @@ pub fn execute(mut command: String) -> ExitStatus {
             print_cleaned(&String::from_utf8(result.stdout).unwrap());
         }
         if !result.stderr.is_empty() {
-            writeln!(std::io::stderr(), "{}", &String::from_utf8(result.stderr).unwrap());
+            let _ = writeln!(std::io::stderr(), "{}", &String::from_utf8(result.stderr).unwrap());
         }
     }
     result.status
@@ -314,10 +314,10 @@ pub fn execute_piped(input: String) -> io::Result<std::process::Output> {
             cmd.stdin(stdin);
         }
 
-        // if i < cmds.len() - 1 {
-        cmd.stdout(Stdio::piped());
-        cmd.stderr(Stdio::piped());
-        // }
+        if i < cmds.len() - 1 {
+            cmd.stdout(Stdio::piped());
+            cmd.stderr(Stdio::piped());
+        }
 
         let mut child = cmd.spawn()?;
 
