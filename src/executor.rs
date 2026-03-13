@@ -5,9 +5,10 @@ use std::io::{self, Write, Error};
 use std::os::unix::process::ExitStatusExt;
 use std::process::{Child, ChildStdout, Command, ExitCode, ExitStatus, Output, Stdio};
 use std::vec;
-
+use rustyline::Editor;
+use rustyline::history::FileHistory;
+use crate::{my_helper::MyHelper, output::MyOutput};
 use crate::builtins;
-use crate::output::MyOutput;
 use crate::utils::{self, get_redirect};
 
 fn clean_last_newline(s: &String) -> String {
@@ -17,7 +18,7 @@ fn clean_last_newline(s: &String) -> String {
 
 fn print_cleaned(s: &String) {
     if s != "" {
-        println!("{}", clean_last_newline(s));
+        writeln!(std::io::stdout(), "{}", clean_last_newline(s));
     }
 }
 
@@ -202,9 +203,11 @@ pub fn execute(mut command: String) -> ExitStatus {
                 // eprint!("{}", e);
                 // TODO: Flush?
                 // print_cleaned(&format!("{}: command not found", cmd));
-                println!("{}: command not found", cmd);
-                // std::io::stdout().flush();
+                // print!("{}: command not found", cmd);
+                // let _ = std::io::stdout().flush();
                 // let _ = std::io::stderr().flush();
+                // print_cleaned(&format!("{}: command not found", cmd));
+                writeln!(std::io::stderr(), "{}: command not found", cmd);
                 return ExitStatusExt::from_raw(0);
             }
         }
@@ -235,7 +238,7 @@ pub fn execute(mut command: String) -> ExitStatus {
             }
         }
         if !result.stderr.is_empty() {
-            print_cleaned(&String::from_utf8(result.stderr).unwrap());
+            writeln!(std::io::stderr(), "{}", &String::from_utf8(result.stderr).unwrap());
         }
     } else if redirect_stderr.is_some() {
         let stderr_file = redirect_stderr.unwrap();
@@ -269,7 +272,7 @@ pub fn execute(mut command: String) -> ExitStatus {
             print_cleaned(&String::from_utf8(result.stdout).unwrap());
         }
         if !result.stderr.is_empty() {
-            print_cleaned(&String::from_utf8(result.stderr).unwrap());
+            writeln!(std::io::stderr(), "{}", &String::from_utf8(result.stderr).unwrap());
         }
     }
     result.status

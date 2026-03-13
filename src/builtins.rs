@@ -157,7 +157,7 @@ fn check_type(command: &str) -> Output {
     }
 
     Output{ 
-        status: ExitStatusExt::from_raw(1), 
+        status: ExitStatusExt::from_raw(0), 
         stdout: vec![], 
         stderr: Vec::from(format!("{}: not found", command).as_bytes()) 
     }
@@ -224,7 +224,7 @@ pub fn handle_cd_command(command: &str) -> Output {
         }
     } else {
         return Output { 
-            status: ExitStatusExt::from_raw(1), 
+            status: ExitStatusExt::from_raw(0), 
             stdout: vec![], 
             stderr: Vec::from(format!("cd: {}: No such file or directory", dir).as_bytes()) 
         };
