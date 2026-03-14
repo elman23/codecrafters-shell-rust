@@ -244,11 +244,35 @@ pub fn execute_piped(input: String) -> io::Result<std::process::Output> {
 
     let mut children: Vec<Child> = Vec::new();
     let mut previous: Option<ChildStdout> = None;
+    let mut previous_out: Option<Vec<u8>> = None;
+    let mut previous_err: Option<Vec<u8>> = None;
 
     for (i, c) in cmds.iter().enumerate() {
 
         if builtins::is_builtin(&c.split(' ').next().unwrap()) {
-            let result = builtins::execute_builtin(&c);
+            let mut result = builtins::execute_builtin(&c);
+            previous_out = match result.stdout.len() {
+                0 => None,
+                _ => {
+                    // Add new line to STDOUT if not present.
+                    if result.stdout[result.stdout.len() - 1] != b'\n' {
+                        result.stdout.push(b'\n');
+                    }
+                    Some(result.stdout)
+                },
+            };
+            previous_err = match result.stderr.len() {
+                0 => None,
+                _ => {
+                    // Add new line to STDERR if not present.
+                    if result.stderr[result.stderr.len() - 1] != b'\n' {
+                        result.stderr.push(b'\n');
+                    }
+                    Some(result.stderr)
+                },
+            };
+            previous = None;
+            continue;
         }
 
         // Command
@@ -266,6 +290,10 @@ pub fn execute_piped(input: String) -> io::Result<std::process::Output> {
             cmd.stdin(stdin);
         }
 
+        if previous_out.is_some() || previous_err.is_some() {
+            cmd.stdin(Stdio::piped());
+        }
+
         if i < cmds.len() - 1 || cmds.len() == 1 {
             cmd.stdout(Stdio::piped());
             cmd.stderr(Stdio::piped());
@@ -273,19 +301,35 @@ pub fn execute_piped(input: String) -> io::Result<std::process::Output> {
 
         let mut child = cmd.spawn()?;
 
+        if let Some(s) = previous_out.take() {
+            child.stdin.take().unwrap().write_all(&s)?;
+        } else if let Some(s) = previous_err.take() {
+            child.stdin.take().unwrap().write_all(&s)?;
+        }
+
         if i < cmds.len() - 1 {
             previous = child.stdout.take();
+            previous_out = None;
+            previous_err = None;
         }
 
         children.push(child);
     }
 
-    let last = children.pop().unwrap();
-    let output = last.wait_with_output()?;
+    if !children.is_empty() {
+        let last = children.pop().unwrap();
+        let output = last.wait_with_output()?;
 
-    for mut child in children {
-        child.wait().unwrap();
+        for mut child in children {
+            child.wait().unwrap();
+        }
+
+        Ok(output)
+    } else {
+        Ok(Output {
+            status: ExitStatusExt::from_raw(0),
+            stdout: previous_out.unwrap_or(vec![]),
+            stderr: previous_err.unwrap_or(vec![]),
+        })
     }
-
-    Ok(output)
 }
