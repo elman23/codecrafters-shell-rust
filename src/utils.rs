@@ -60,6 +60,9 @@ pub fn get_redirect(input: &str) -> RedirectInfo {
             continue;
         }
         if c == '>' && !in_single_quote && !in_double_quote {
+            if previous == '1' || previous == '2' {
+                redirect_index = counter - 1;
+            }
             if previous == '2' {
                 redirect_stderr = true;
             } else {

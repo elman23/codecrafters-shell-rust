@@ -125,9 +125,9 @@ fn get_command_path(s: &str) -> String {
 }
 
 pub fn execute(mut command: String) -> std::io::Result<u8> {
-    let mut result: Output;
+    let result: Output;
 
-    // TODO: Check if redirect
+    // Check if redirect
     let redirect_info = utils::get_redirect(&command);
     let redirect_stdout = redirect_info.redirect_stdout_file;
     let redirect_stderr = redirect_info.redirect_stderr_file;
@@ -137,13 +137,9 @@ pub fn execute(mut command: String) -> std::io::Result<u8> {
     if redirect_stdout.is_some() || redirect_stderr.is_some() {
         let index = index.unwrap() - 1;
         command = command[..index].trim().to_string();
-        // TODO: Fix, dirty hack.
-        if command.ends_with("1") || command.ends_with("2") {
-            command = command[..command.len() - 1].trim().to_string();
-        }
     }
 
-    let cmd: String = command.clone(); // TODO: Fix.
+    let cmd: String = command.clone(); // TODO: Improve.
     match execute_piped(command) {
         Ok(r) => {
             result = r;
