@@ -1,3 +1,4 @@
+use std::fs::OpenOptions;
 #[allow(unused_imports)]
 use std::io::{self, Write, Error};
 
@@ -42,6 +43,17 @@ pub fn execute_builtin(command: &str, history: &mut Vec<String>) -> Output {
     }
 }
 
+fn write_file(path: &str, content: &str) {
+    let mut file = OpenOptions::new()
+        .create(true)
+        .write(true)
+        .truncate(false)
+        .open(path).expect(&format!("Failed to open file {}", path));
+
+    file.write_all(content.as_bytes())
+        .expect(&format!("Failed to write to file {}", path));
+}
+
 fn handle_history_command(command: &str, history: &mut Vec<String>) -> Output {
     let stdout: Vec<u8>;
     let n = command.split_whitespace().nth(1);
@@ -57,13 +69,19 @@ fn handle_history_command(command: &str, history: &mut Vec<String>) -> Output {
                         let path = command.split_whitespace().nth(2).unwrap();
                         let content = fs::read_to_string(path).unwrap().trim().to_string();
                         let mut splitted_content: Vec<String> = content.split("\n")
-                                                                    //    .map(|s| s.to_string())
                                                                        .enumerate()
                                                                        .map(|(j, s)| format!("\t{}  {}", j + 1, s))
                                                                        .collect();
                         history.append(&mut splitted_content);
                     }
-                    // stdout = history.join("\n").into_bytes();
+                    if i == "-w" {
+                        // Write history to file.
+                        let path  = command.split_whitespace().nth(2).unwrap();
+                        let content: Vec<&str> = history.iter().map(|s| s.trim().split_once(" ").unwrap_or(("", "")).1.trim()).collect();
+                        let mut content = content.join("\n");
+                        content.push('\n');
+                        let _ = write_file(path, &content);
+                    }
                     stdout = vec![];
                 }
             }
