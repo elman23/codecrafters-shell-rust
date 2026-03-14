@@ -15,9 +15,14 @@ fn repl_loop() {
     let mut rl = Editor::with_config(config).unwrap();
     let helper = MyHelper::new();
     rl.set_helper(Some(helper));    
+
+    // History
+    let mut history: Vec<String> =  Vec::new(); 
+
     loop {
         let input = rl.readline(constants::PROMPT).unwrap();
-        let ec: std::io::Result<u8> = executor::execute(input);
+        history.push(input.clone()); // TODO: Is there a better way?
+        let ec: std::io::Result<u8> = executor::execute(input, &history);
         match ec {  
             Ok(0) => { },
             _ => { break; }

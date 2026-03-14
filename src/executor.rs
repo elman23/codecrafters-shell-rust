@@ -124,7 +124,7 @@ fn get_command_path(s: &str) -> String {
     command_path
 }
 
-pub fn execute(mut command: String) -> std::io::Result<u8> {
+pub fn execute(mut command: String, history: &Vec<String>) -> std::io::Result<u8> {
     let result: Output;
 
     // Check if redirect
@@ -139,7 +139,7 @@ pub fn execute(mut command: String) -> std::io::Result<u8> {
         command = command[..index].trim().to_string();
     }
 
-    match execute_piped(&command) {
+    match execute_piped(&command, history) {
         Ok(r) => {
             result = r;
             if command.starts_with(constants::EXIT_CMD) {
@@ -217,7 +217,7 @@ pub fn execute(mut command: String) -> std::io::Result<u8> {
     Ok(0)
 }
 
-pub fn execute_piped(input: &str) -> io::Result<std::process::Output> {
+pub fn execute_piped(input: &str, history: &Vec<String>) -> io::Result<std::process::Output> {
 
     let cmds: Vec<&str> = input
                         .split('|')
@@ -234,7 +234,7 @@ pub fn execute_piped(input: &str) -> io::Result<std::process::Output> {
     for (i, c) in cmds.iter().enumerate() {
 
         if builtins::is_builtin(&c.split(' ').next().unwrap()) {
-            let result: Output = builtins::execute_builtin(&c);
+            let result: Output = builtins::execute_builtin(&c, history);
             previous_ec = result.status;
             previous_out = match result.stdout.len() {
                 0 => None,

@@ -16,7 +16,7 @@ pub fn is_builtin(cmd: &str) -> bool {
     constants::SHELL_BUILTINS.contains(&cmd)
 }
 
-pub fn execute_builtin(command: &str) -> Output {
+pub fn execute_builtin(command: &str, history: &Vec<String>) -> Output {
     if command.trim() == constants::EXIT_CMD {
         Output { 
             status: ExitStatusExt::from_raw(1), 
@@ -31,12 +31,22 @@ pub fn execute_builtin(command: &str) -> Output {
         print_pwd()
     } else if command.starts_with(&*format!("{} ", &constants::CD_CMD)) {
         handle_cd_command(&command)
+    } else if command.starts_with(&*format!("{} ", &constants::HISTORY_CMD)) {
+        handle_history_command(history)
     } else {
         Output { 
             status: ExitStatusExt::from_raw(0), 
             stdout: vec![], 
             stderr: vec![]
         }
+    }
+}
+
+fn handle_history_command(history: &Vec<String>) -> Output {
+    Output { 
+        status: ExitStatusExt::from_raw(0), 
+        stdout: history.join("\n").into_bytes(), 
+        stderr: vec![] 
     }
 }
 
