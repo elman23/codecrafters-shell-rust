@@ -2,7 +2,7 @@ use std::fs::{self, File, OpenOptions};
 use std::io::{self, Write};
 use std::os::unix::process::ExitStatusExt;
 use std::process::{Child, ChildStdout, Command, ExitStatus, Output, Stdio};
-use crate::builtins;
+use crate::builtins::{self, EXIT_CMD};
 use crate::utils;
 
 fn clean_last_newline(s: &String) -> String {
@@ -158,11 +158,13 @@ pub fn execute(mut command: String) -> ExitStatus {
     //     }
     // }
     
-    let cmd = command.clone(); // TODO: Fix.
+    let cmd: String = command.clone(); // TODO: Fix.
     match execute_piped(command) {
         Ok(r) => {
             result = r;
-            result.status = ExitStatusExt::from_raw(0);
+            if !cmd.starts_with(EXIT_CMD) {
+                result.status = ExitStatusExt::from_raw(0);
+            }
         },
         Err(_) => {
             let _ = writeln!(std::io::stderr(), "{}: command not found", cmd);
@@ -229,7 +231,7 @@ pub fn execute(mut command: String) -> ExitStatus {
             print_cleaned(&String::from_utf8(result.stdout).unwrap());
         }
         if !result.stderr.is_empty() {
-            let _ = writeln!(std::io::stderr(), "{}", &String::from_utf8(result.stderr).unwrap());
+            let _ = writeln!(std::io::stderr(), "{}", &String::from_utf8(result.stderr).unwrap().trim());
         }
     }
     result.status
@@ -244,6 +246,7 @@ pub fn execute_piped(input: String) -> io::Result<std::process::Output> {
 
     let mut children: Vec<Child> = Vec::new();
     let mut previous: Option<ChildStdout> = None;
+    let mut previous_ec: ExitStatus = ExitStatusExt::from_raw(0);
     let mut previous_out: Option<Vec<u8>> = None;
     let mut previous_err: Option<Vec<u8>> = None;
     let mut is_last_builtin = false;
@@ -251,14 +254,15 @@ pub fn execute_piped(input: String) -> io::Result<std::process::Output> {
     for (i, c) in cmds.iter().enumerate() {
 
         if builtins::is_builtin(&c.split(' ').next().unwrap()) {
-            let mut result = builtins::execute_builtin(&c);
+            let mut result: Output = builtins::execute_builtin(&c);
+            previous_ec = result.status;
             previous_out = match result.stdout.len() {
                 0 => None,
                 _ => {
                     // Add new line to STDOUT if not present.
-                    if result.stdout[result.stdout.len() - 1] != b'\n' {
-                        result.stdout.push(b'\n');
-                    }
+                    // if result.stdout[result.stdout.len() - 1] != b'\n' {
+                        // result.stdout.push(b'\n');
+                    // }
                     Some(result.stdout)
                 },
             };
@@ -266,9 +270,9 @@ pub fn execute_piped(input: String) -> io::Result<std::process::Output> {
                 0 => None,
                 _ => {
                     // Add new line to STDERR if not present.
-                    if result.stderr[result.stderr.len() - 1] != b'\n' {
-                        result.stderr.push(b'\n');
-                    }
+                    // if result.stderr[result.stderr.len() - 1] != b'\n' {
+                        // result.stderr.push(b'\n');
+                    // }
                     Some(result.stderr)
                 },
             };
@@ -334,13 +338,13 @@ pub fn execute_piped(input: String) -> io::Result<std::process::Output> {
 
     if previous_out.is_none() && previous_err.is_none() {
         Ok(output.unwrap_or(Output { 
-            status: ExitStatusExt::from_raw(0), 
+            status: previous_ec, 
             stdout: vec![], 
             stderr: vec![] 
         }))
     } else {
         Ok(Output {
-            status: ExitStatusExt::from_raw(0),
+            status: previous_ec,
             stdout: previous_out.unwrap_or(vec![]),
             stderr: previous_err.unwrap_or(vec![]),
         })

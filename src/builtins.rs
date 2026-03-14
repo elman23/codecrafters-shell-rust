@@ -130,9 +130,11 @@ pub fn handle_echo_command(command: &str) -> Output {
     arguments = arguments.replace("\"\"", "");
     arguments = arguments.replace("''", "");
     let arguments = parse_echo_args(&arguments);
+    let mut stdout = Vec::from(arguments.as_bytes());
+    stdout.push(b'\n');
     Output { 
         status: ExitStatusExt::from_raw(0), 
-        stdout: Vec::from(arguments.as_bytes()), 
+        stdout: stdout, 
         stderr: vec![]
     }
 }
