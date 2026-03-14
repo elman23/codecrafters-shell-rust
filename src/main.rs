@@ -21,7 +21,7 @@ fn repl_loop() {
 
     loop {
         let input = rl.readline(constants::PROMPT).unwrap();
-        history.push(input.clone()); // TODO: Is there a better way?
+        history.push(format!("\t{}  {}", history.len() + 1, input.clone())); // TODO: Is there a better way?
         let ec: std::io::Result<u8> = executor::execute(input, &history);
         match ec {  
             Ok(0) => { },

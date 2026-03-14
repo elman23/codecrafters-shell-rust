@@ -31,7 +31,7 @@ pub fn execute_builtin(command: &str, history: &Vec<String>) -> Output {
         print_pwd()
     } else if command.starts_with(&*format!("{} ", &constants::CD_CMD)) {
         handle_cd_command(&command)
-    } else if command.starts_with(&*format!("{} ", &constants::HISTORY_CMD)) {
+    } else if command.starts_with(constants::HISTORY_CMD) {
         handle_history_command(history)
     } else {
         Output { 
@@ -43,9 +43,10 @@ pub fn execute_builtin(command: &str, history: &Vec<String>) -> Output {
 }
 
 fn handle_history_command(history: &Vec<String>) -> Output {
+    let stdout = history.join("\n").into_bytes();
     Output { 
         status: ExitStatusExt::from_raw(0), 
-        stdout: history.join("\n").into_bytes(), 
+        stdout: stdout,
         stderr: vec![] 
     }
 }
