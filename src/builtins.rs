@@ -16,7 +16,7 @@ pub fn is_builtin(cmd: &str) -> bool {
     constants::SHELL_BUILTINS.contains(&cmd)
 }
 
-pub fn execute_builtin(command: &str, history: &Vec<String>) -> Output {
+pub fn execute_builtin(command: &str, history: &mut Vec<String>) -> Output {
     if command.trim() == constants::EXIT_CMD {
         Output { 
             status: ExitStatusExt::from_raw(1), 
@@ -42,12 +42,31 @@ pub fn execute_builtin(command: &str, history: &Vec<String>) -> Output {
     }
 }
 
-fn handle_history_command(command: &str, history: &Vec<String>) -> Output {
+fn handle_history_command(command: &str, history: &mut Vec<String>) -> Output {
     let stdout: Vec<u8>;
     let n = command.split_whitespace().nth(1);
     match n {
         Some(i) => {
-            stdout = history[(history.len() - i.parse::<usize>().unwrap())..].join("\n").into_bytes();
+            match i.parse::<usize>() {
+                Ok(c) => {
+                    stdout = history[(history.len() - c)..].join("\n").into_bytes();
+                },
+                Err(_) => {
+                    if i == "-r" {
+                        // Read history from file.
+                        let path = command.split_whitespace().nth(2).unwrap();
+                        let content = fs::read_to_string(path).unwrap().trim().to_string();
+                        let mut splitted_content: Vec<String> = content.split("\n")
+                                                                    //    .map(|s| s.to_string())
+                                                                       .enumerate()
+                                                                       .map(|(j, s)| format!("\t{}  {}", j + 1, s))
+                                                                       .collect();
+                        history.append(&mut splitted_content);
+                    }
+                    // stdout = history.join("\n").into_bytes();
+                    stdout = vec![];
+                }
+            }
         },
         None => {
             stdout = history.join("\n").into_bytes();

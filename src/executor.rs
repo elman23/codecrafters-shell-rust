@@ -124,7 +124,7 @@ fn get_command_path(s: &str) -> String {
     command_path
 }
 
-pub fn execute(mut command: String, history: &Vec<String>) -> std::io::Result<u8> {
+pub fn execute(mut command: String, history: &mut Vec<String>) -> std::io::Result<u8> {
     let result: Output;
 
     // Check if redirect
@@ -217,7 +217,7 @@ pub fn execute(mut command: String, history: &Vec<String>) -> std::io::Result<u8
     Ok(0)
 }
 
-pub fn execute_piped(input: &str, history: &Vec<String>) -> io::Result<std::process::Output> {
+pub fn execute_piped(input: &str, history: &mut Vec<String>) -> io::Result<std::process::Output> {
 
     let cmds: Vec<&str> = input
                         .split('|')
