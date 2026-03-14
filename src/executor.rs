@@ -139,16 +139,15 @@ pub fn execute(mut command: String) -> std::io::Result<u8> {
         command = command[..index].trim().to_string();
     }
 
-    let cmd: String = command.clone(); // TODO: Improve.
-    match execute_piped(command) {
+    match execute_piped(&command) {
         Ok(r) => {
             result = r;
-            if cmd.starts_with(constants::EXIT_CMD) {
+            if command.starts_with(constants::EXIT_CMD) {
                 return Ok(1);
             }
         },
         Err(_) => {
-            let _ = writeln!(std::io::stderr(), "{}: command not found", cmd);
+            let _ = writeln!(std::io::stderr(), "{}: command not found", command);
             return Ok(0);
         }
     }
@@ -218,7 +217,7 @@ pub fn execute(mut command: String) -> std::io::Result<u8> {
     Ok(0)
 }
 
-pub fn execute_piped(input: String) -> io::Result<std::process::Output> {
+pub fn execute_piped(input: &str) -> io::Result<std::process::Output> {
 
     let cmds: Vec<&str> = input
                         .split('|')
