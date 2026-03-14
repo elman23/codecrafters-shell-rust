@@ -1,18 +1,11 @@
-use std::arch::x86_64::CpuidResult;
 use std::fs::{self, File, OpenOptions};
-#[allow(unused_imports)]
-use std::io::{self, Write, Error};
+use std::io::{self, Write};
 use std::os::unix::process::ExitStatusExt;
-use std::process::{Child, ChildStdout, Command, ExitCode, ExitStatus, Output, Stdio};
-use std::vec;
-use rustyline::Editor;
-use rustyline::history::FileHistory;
-use crate::{my_helper::MyHelper, output::MyOutput};
+use std::process::{Child, ChildStdout, Command, ExitStatus, Output, Stdio};
 use crate::builtins;
-use crate::utils::{self, get_redirect};
+use crate::utils;
 
 fn clean_last_newline(s: &String) -> String {
-    // s.trim().to_string()
     s.strip_suffix('\n').unwrap_or(s).to_string()
 }
 
@@ -130,48 +123,6 @@ fn get_command_path(s: &str) -> String {
     command_path
 }
 
-pub fn exec_command(command: &str, input: Option<Stdio>) -> (Stdio, Stdio) {
-
-    let command_path = get_command_path(command);
-    let command_name = command_path.split("/").last().unwrap_or("Failed to parse command name");
-    let command_name = cleanup_name(command_name);
-
-    let args;
-
-    // TODO: Handle redirect in main function.
-    let redirect_info = get_redirect(command);
-    let redirect_stdout = redirect_info.redirect_stdout_file;
-    let redirect_stderr = redirect_info.redirect_stderr_file;
-    let index = redirect_info.file_index_start;
-    if redirect_stdout.is_some() || redirect_stderr.is_some() {
-        let index = index.unwrap() - 1;
-        args = &command[command_path.len()..index];
-    } else {
-        args = &command[command_path.len()..];
-    }
-
-    let args = args.trim_start();
-    let args = get_command_args(args);
-
-    let mut binding = Command::new(command_name);
-    let my_command: &mut Command = binding
-        .args(&args)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
-        
-
-    if let Some(i) = input {
-        my_command.stdin(i);
-    }
-    let mut my_command = my_command.spawn()
-        .unwrap();
-    let stdout = my_command.stdout.take().unwrap();
-    let stderr = my_command.stderr.take().unwrap();
-
-    (stdout.into(), stderr.into())
-    
-}
-
 pub fn execute(mut command: String) -> ExitStatus {
     let mut result: Output;
 
@@ -200,14 +151,7 @@ pub fn execute(mut command: String) -> ExitStatus {
                 result = r;
                 result.status = ExitStatusExt::from_raw(0);
             },
-            Err(e) => {
-                // eprint!("{}", e);
-                // TODO: Flush?
-                // print_cleaned(&format!("{}: command not found", cmd));
-                // print!("{}: command not found", cmd);
-                // let _ = std::io::stdout().flush();
-                // let _ = std::io::stderr().flush();
-                // print_cleaned(&format!("{}: command not found", cmd));
+            Err(_) => {
                 let _ = writeln!(std::io::stderr(), "{}: command not found", cmd);
                 return ExitStatusExt::from_raw(0);
             }
@@ -290,25 +234,17 @@ pub fn execute_piped(input: String) -> io::Result<std::process::Output> {
     let mut previous: Option<ChildStdout> = None;
 
     for (i, c) in cmds.iter().enumerate() {
-        // let split: Vec<&str> = c.split(" ").collect();
 
         // Command
-        // let cmd_name = split[0];
         let command_path = get_command_path(c);
         let cmd_name = command_path.split("/").last().unwrap_or("Failed to parse command name");
         let cmd_name = cleanup_name(cmd_name);
-
         
         let mut cmd = Command::new(&cmd_name);
         
-        // Arguments - TODO: FIX
+        // Arguments
         let args = get_command_args(&c[command_path.len()..]);
         cmd.args(args);
-        // let mut j = 1;
-        // while j < split.len() {
-        //     cmd.arg(split[j]);
-        //     j += 1;
-        // }
 
         if let Some(stdin) = previous.take() {
             cmd.stdin(stdin);

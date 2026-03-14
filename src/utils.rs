@@ -4,8 +4,6 @@ pub struct RedirectInfo {
     pub file_index_start: Option<usize>,
     pub append_stdout: bool,
     pub append_stderr: bool,
-    pub pipe_stdout: bool,
-    pub pipe_stderr: bool,
 }
 
 pub fn get_redirect(input: &str) -> RedirectInfo {
@@ -18,9 +16,6 @@ pub fn get_redirect(input: &str) -> RedirectInfo {
 
     let mut append_stdout = false;
     let mut append_stderr = false;
-
-    let mut pipe_stdout = false;
-    let mut pipe_stderr = false;
 
     let mut in_single_quote = false;
     let mut in_double_quote = false;
@@ -74,9 +69,6 @@ pub fn get_redirect(input: &str) -> RedirectInfo {
                 redirect_index = counter;
             }
         }
-        if c == '|' && !in_single_quote && !in_double_quote {
-            pipe_stdout = true;
-        }
         previous = c;
     }
 
@@ -87,8 +79,6 @@ pub fn get_redirect(input: &str) -> RedirectInfo {
             file_index_start: Some(redirect_index),
             append_stdout,
             append_stderr,
-            pipe_stdout,
-            pipe_stderr,
         }
     } else if redirect_stderr {
         RedirectInfo { 
@@ -97,8 +87,6 @@ pub fn get_redirect(input: &str) -> RedirectInfo {
             file_index_start: Some(redirect_index) ,
             append_stdout,
             append_stderr,
-            pipe_stdout,
-            pipe_stderr,
         }
     } else {
         RedirectInfo {
@@ -107,8 +95,6 @@ pub fn get_redirect(input: &str) -> RedirectInfo {
             file_index_start: None ,
             append_stdout,
             append_stderr,
-            pipe_stdout,
-            pipe_stderr,
         }
     }
 }
