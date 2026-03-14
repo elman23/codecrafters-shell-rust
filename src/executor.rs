@@ -246,6 +246,7 @@ pub fn execute_piped(input: String) -> io::Result<std::process::Output> {
     let mut previous: Option<ChildStdout> = None;
     let mut previous_out: Option<Vec<u8>> = None;
     let mut previous_err: Option<Vec<u8>> = None;
+    let mut is_last_builtin = false;
 
     for (i, c) in cmds.iter().enumerate() {
 
@@ -272,6 +273,9 @@ pub fn execute_piped(input: String) -> io::Result<std::process::Output> {
                 },
             };
             previous = None;
+            if i == cmds.len() - 1 {
+                is_last_builtin = true;
+            }
             continue;
         }
 
@@ -316,15 +320,24 @@ pub fn execute_piped(input: String) -> io::Result<std::process::Output> {
         children.push(child);
     }
 
-    if !children.is_empty() {
-        let last = children.pop().unwrap();
-        let output = last.wait_with_output()?;
+    let mut output: Option<Output> = None;
 
+    if !children.is_empty() {
+        if !is_last_builtin {
+            let last = children.pop().unwrap();
+            output = Some(last.wait_with_output()?);
+        }
         for mut child in children {
             child.wait().unwrap();
         }
+    }
 
-        Ok(output)
+    if previous_out.is_none() && previous_err.is_none() {
+        Ok(output.unwrap_or(Output { 
+            status: ExitStatusExt::from_raw(0), 
+            stdout: vec![], 
+            stderr: vec![] 
+        }))
     } else {
         Ok(Output {
             status: ExitStatusExt::from_raw(0),
