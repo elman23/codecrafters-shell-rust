@@ -142,19 +142,31 @@ pub fn execute(mut command: String) -> ExitStatus {
         }
     }
 
-    if builtins::is_builtin(&command.split(' ').next().unwrap()) {
-        result = builtins::execute_builtin(&command);
-    } else {
-        let cmd = command.clone(); // TODO: Fix.
-        match execute_piped(command) {
-            Ok(r) => {
-                result = r;
-                result.status = ExitStatusExt::from_raw(0);
-            },
-            Err(_) => {
-                let _ = writeln!(std::io::stderr(), "{}: command not found", cmd);
-                return ExitStatusExt::from_raw(0);
-            }
+    // if builtins::is_builtin(&command.split(' ').next().unwrap()) {
+    //     result = builtins::execute_builtin(&command);
+    // } else {
+    //     let cmd = command.clone(); // TODO: Fix.
+    //     match execute_piped(command) {
+    //         Ok(r) => {
+    //             result = r;
+    //             result.status = ExitStatusExt::from_raw(0);
+    //         },
+    //         Err(_) => {
+    //             let _ = writeln!(std::io::stderr(), "{}: command not found", cmd);
+    //             return ExitStatusExt::from_raw(0);
+    //         }
+    //     }
+    // }
+    
+    let cmd = command.clone(); // TODO: Fix.
+    match execute_piped(command) {
+        Ok(r) => {
+            result = r;
+            result.status = ExitStatusExt::from_raw(0);
+        },
+        Err(_) => {
+            let _ = writeln!(std::io::stderr(), "{}: command not found", cmd);
+            return ExitStatusExt::from_raw(0);
         }
     }
 
@@ -234,6 +246,10 @@ pub fn execute_piped(input: String) -> io::Result<std::process::Output> {
     let mut previous: Option<ChildStdout> = None;
 
     for (i, c) in cmds.iter().enumerate() {
+
+        if builtins::is_builtin(&c.split(' ').next().unwrap()) {
+            let result = builtins::execute_builtin(&c);
+        }
 
         // Command
         let command_path = get_command_path(c);
