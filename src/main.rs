@@ -8,8 +8,7 @@ mod builtins;
 mod utils;
 mod my_helper;
 mod path_checker;
-
-const PROMPT: &str = "$ ";
+mod constants;
 
 fn repl_loop() {
     let config = rustyline::Config::builder().completion_type(rustyline::CompletionType::List).build();
@@ -17,10 +16,11 @@ fn repl_loop() {
     let helper = MyHelper::new();
     rl.set_helper(Some(helper));    
     loop {
-        let input = rl.readline(PROMPT).unwrap();
-        let ec = executor::execute(input);
-        if !ec.success() {
-            break;
+        let input = rl.readline(constants::PROMPT).unwrap();
+        let ec: std::io::Result<u8> = executor::execute(input);
+        match ec {  
+            Ok(0) => { },
+            _ => { break; }
         }
     }
 }

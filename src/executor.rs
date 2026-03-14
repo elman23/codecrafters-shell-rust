@@ -2,8 +2,9 @@ use std::fs::{self, File, OpenOptions};
 use std::io::{self, Write};
 use std::os::unix::process::ExitStatusExt;
 use std::process::{Child, ChildStdout, Command, ExitStatus, Output, Stdio};
-use crate::builtins::{self, EXIT_CMD};
+use crate::builtins;
 use crate::utils;
+use crate::constants;
 
 fn clean_last_newline(s: &String) -> String {
     s.strip_suffix('\n').unwrap_or(s).to_string()
@@ -123,7 +124,7 @@ fn get_command_path(s: &str) -> String {
     command_path
 }
 
-pub fn execute(mut command: String) -> ExitStatus {
+pub fn execute(mut command: String) -> std::io::Result<u8> {
     let mut result: Output;
 
     // TODO: Check if redirect
@@ -142,33 +143,17 @@ pub fn execute(mut command: String) -> ExitStatus {
         }
     }
 
-    // if builtins::is_builtin(&command.split(' ').next().unwrap()) {
-    //     result = builtins::execute_builtin(&command);
-    // } else {
-    //     let cmd = command.clone(); // TODO: Fix.
-    //     match execute_piped(command) {
-    //         Ok(r) => {
-    //             result = r;
-    //             result.status = ExitStatusExt::from_raw(0);
-    //         },
-    //         Err(_) => {
-    //             let _ = writeln!(std::io::stderr(), "{}: command not found", cmd);
-    //             return ExitStatusExt::from_raw(0);
-    //         }
-    //     }
-    // }
-    
     let cmd: String = command.clone(); // TODO: Fix.
     match execute_piped(command) {
         Ok(r) => {
             result = r;
-            if !cmd.starts_with(EXIT_CMD) {
-                result.status = ExitStatusExt::from_raw(0);
+            if cmd.starts_with(constants::EXIT_CMD) {
+                return Ok(1);
             }
         },
         Err(_) => {
             let _ = writeln!(std::io::stderr(), "{}: command not found", cmd);
-            return ExitStatusExt::from_raw(0);
+            return Ok(0);
         }
     }
 
@@ -234,7 +219,7 @@ pub fn execute(mut command: String) -> ExitStatus {
             let _ = writeln!(std::io::stderr(), "{}", &String::from_utf8(result.stderr).unwrap().trim());
         }
     }
-    result.status
+    Ok(0)
 }
 
 pub fn execute_piped(input: String) -> io::Result<std::process::Output> {
@@ -254,15 +239,12 @@ pub fn execute_piped(input: String) -> io::Result<std::process::Output> {
     for (i, c) in cmds.iter().enumerate() {
 
         if builtins::is_builtin(&c.split(' ').next().unwrap()) {
-            let mut result: Output = builtins::execute_builtin(&c);
+            let result: Output = builtins::execute_builtin(&c);
             previous_ec = result.status;
             previous_out = match result.stdout.len() {
                 0 => None,
                 _ => {
                     // Add new line to STDOUT if not present.
-                    // if result.stdout[result.stdout.len() - 1] != b'\n' {
-                        // result.stdout.push(b'\n');
-                    // }
                     Some(result.stdout)
                 },
             };
@@ -270,9 +252,6 @@ pub fn execute_piped(input: String) -> io::Result<std::process::Output> {
                 0 => None,
                 _ => {
                     // Add new line to STDERR if not present.
-                    // if result.stderr[result.stderr.len() - 1] != b'\n' {
-                        // result.stderr.push(b'\n');
-                    // }
                     Some(result.stderr)
                 },
             };

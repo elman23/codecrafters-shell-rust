@@ -1,6 +1,6 @@
 use rustyline::{Context};
 use rustyline::completion::{Completer, FilenameCompleter, Pair};
-use crate::builtins::SHELL_BUILTINS;
+use crate::constants::SHELL_BUILTINS;
 use crate::path_checker::list_executables;
 
 use rustyline_derive::{Helper, Highlighter, Hinter, Validator};

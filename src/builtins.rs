@@ -10,34 +10,26 @@ use std::os::unix::fs::PermissionsExt;
 use std::ffi::OsStr;
 use std::process::Output;
 
-pub const EXIT_CMD: &str = "exit";
-pub const ECHO_CMD: &str = "echo";
-pub const TYPE_CMD: &str = "type";
-pub const PWD_CMD: &str = "pwd";
-pub const CD_CMD: &str = "cd";
-pub const HOME_DIR: &str = "~";
-
-// TODO: Improve. This requires that each new built-in command shall be added manually.
-pub const SHELL_BUILTINS: &[&str] = &[EXIT_CMD, ECHO_CMD, TYPE_CMD, PWD_CMD, CD_CMD];
+use crate::constants;
 
 pub fn is_builtin(cmd: &str) -> bool {
-    SHELL_BUILTINS.contains(&cmd)
+    constants::SHELL_BUILTINS.contains(&cmd)
 }
 
 pub fn execute_builtin(command: &str) -> Output {
-    if command.trim() == EXIT_CMD {
+    if command.trim() == constants::EXIT_CMD {
         Output { 
             status: ExitStatusExt::from_raw(1), 
             stdout: vec![], 
             stderr: vec![] 
         }
-    } else if command.starts_with(&*format!("{} ", &ECHO_CMD)) {
+    } else if command.starts_with(&*format!("{} ", &constants::ECHO_CMD)) {
         handle_echo_command(&command)
-    } else if command.starts_with(&*format!("{} ", &TYPE_CMD)) {
+    } else if command.starts_with(&*format!("{} ", &constants::TYPE_CMD)) {
         handle_type_command(&command)
-    } else if command == String::from(PWD_CMD) {
+    } else if command == String::from(constants::PWD_CMD) {
         print_pwd()
-    } else if command.starts_with(&*format!("{} ", &CD_CMD)) {
+    } else if command.starts_with(&*format!("{} ", &constants::CD_CMD)) {
         handle_cd_command(&command)
     } else {
         Output { 
@@ -125,7 +117,7 @@ fn parse_echo_args(input: &str) -> String {
 }
 
 pub fn handle_echo_command(command: &str) -> Output {
-    let arguments = &command[(ECHO_CMD.len() + 1)..];
+    let arguments = &command[(constants::ECHO_CMD.len() + 1)..];
     let mut arguments = String::from(arguments);
     arguments = arguments.replace("\"\"", "");
     arguments = arguments.replace("''", "");
@@ -166,8 +158,8 @@ fn check_type(command: &str) -> Output {
 }
 
 pub fn handle_type_command(command: &str) -> Output {
-    let arguments = &command[(TYPE_CMD.len() + 1)..];
-    if SHELL_BUILTINS.contains(&arguments) {
+    let arguments = &command[(constants::TYPE_CMD.len() + 1)..];
+    if constants::SHELL_BUILTINS.contains(&arguments) {
         Output { 
             status: ExitStatusExt::from_raw(0), 
             stdout: Vec::from(format!("{} is a shell builtin", arguments).as_bytes()), 
@@ -183,10 +175,10 @@ fn change_dir(dir: &str) -> Result<(), Error>{
 }
 
 pub fn handle_cd_command(command: &str) -> Output {
-    let arguments = &command[(CD_CMD.len() + 1)..];
+    let arguments = &command[(constants::CD_CMD.len() + 1)..];
     let dir = arguments.split_whitespace().next().unwrap();
 
-    if dir == HOME_DIR {
+    if dir == constants::HOME_DIR {
         let home_dir = env::var_os("HOME").expect("HOME variable not set!");
         let home_dir = home_dir.to_str().unwrap();
         match change_dir(home_dir) {
