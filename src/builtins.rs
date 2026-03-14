@@ -32,7 +32,7 @@ pub fn execute_builtin(command: &str, history: &Vec<String>) -> Output {
     } else if command.starts_with(&*format!("{} ", &constants::CD_CMD)) {
         handle_cd_command(&command)
     } else if command.starts_with(constants::HISTORY_CMD) {
-        handle_history_command(history)
+        handle_history_command(command, history)
     } else {
         Output { 
             status: ExitStatusExt::from_raw(0), 
@@ -42,8 +42,17 @@ pub fn execute_builtin(command: &str, history: &Vec<String>) -> Output {
     }
 }
 
-fn handle_history_command(history: &Vec<String>) -> Output {
-    let stdout = history.join("\n").into_bytes();
+fn handle_history_command(command: &str, history: &Vec<String>) -> Output {
+    let stdout: Vec<u8>;
+    let n = command.split_whitespace().nth(1);
+    match n {
+        Some(i) => {
+            stdout = history[(history.len() - i.parse::<usize>().unwrap())..].join("\n").into_bytes();
+        },
+        None => {
+            stdout = history.join("\n").into_bytes();
+        }
+    }
     Output { 
         status: ExitStatusExt::from_raw(0), 
         stdout: stdout,
