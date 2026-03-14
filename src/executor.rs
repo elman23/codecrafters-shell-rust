@@ -314,7 +314,7 @@ pub fn execute_piped(input: String) -> io::Result<std::process::Output> {
             cmd.stdin(stdin);
         }
 
-        if i < cmds.len() - 1 {
+        if i < cmds.len() - 1 || cmds.len() == 1 {
             cmd.stdout(Stdio::piped());
             cmd.stderr(Stdio::piped());
         }
