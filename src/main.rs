@@ -1,5 +1,3 @@
-#[allow(unused_imports)]
-use std::fs;
 use rustyline::Editor;
 use crate::my_helper::MyHelper;
 
@@ -18,6 +16,7 @@ fn repl_loop() {
 
     // History
     let mut history: Vec<String> =  Vec::new(); 
+    load_history_from_file(&mut history);
 
     loop {
         let input = rl.readline(constants::PROMPT).unwrap();
@@ -28,6 +27,37 @@ fn repl_loop() {
             Ok(0) => { },
             _ => { break; }
         }
+    }
+
+    save_history_to_file(&mut history);
+}
+
+fn load_history_from_file(history: &mut Vec<String>) {
+    let history_file = std::env::var("HISTFILE");
+    match history_file {
+        Ok(f) => {
+            let file_content = utils::read_file_content(&f);
+            let mut lines: Vec<String> = file_content.split('\n')
+                                                 .filter(|s| !s.is_empty())
+                                                 .enumerate()
+                                                 .map(|(i, s)| format!("\t{}  {}", i, s))
+                                                 .collect();
+            history.append(&mut lines);
+        },
+        Err(_) => { }
+    }
+}
+
+fn save_history_to_file(history: &Vec<String>) {
+    let history_file = std::env::var("HISTFILE");
+    match history_file {
+        Ok(f) => {
+            let content: Vec<&str> = history.iter().map(|s| s.trim().split_once(" ").unwrap_or(("", "")).1.trim()).collect();
+            let mut content = content.join("\n");
+            content.push('\n');
+            let _ = utils::write_file(&f, &content);
+        },
+        Err(_) => { }
     }
 }
 

@@ -1,3 +1,5 @@
+use std::{fs::OpenOptions, io::Write};
+
 pub struct RedirectInfo {
     pub redirect_stdout_file: Option<String>,
     pub redirect_stderr_file: Option<String>,
@@ -100,4 +102,31 @@ pub fn get_redirect(input: &str) -> RedirectInfo {
             append_stderr,
         }
     }
+}
+
+pub fn write_file(path: &str, content: &str) {
+    let mut file = OpenOptions::new()
+        .create(true)
+        .write(true)
+        .truncate(false)
+        .open(path).expect(&format!("Failed to open file {}", path));
+
+    file.write_all(content.as_bytes())
+        .expect(&format!("Failed to write to file {}", path));
+}
+
+pub fn owerwrite_file(path: &str, content: &str) {
+    let mut file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .open(path).expect(&format!("Failed to open file {}", path));
+
+    file.write_all(content.as_bytes())
+        .expect(&format!("Failed to write to file {}", path));
+}
+
+pub fn read_file_content(path: &str) -> String {
+    std::fs::read_to_string(path).unwrap_or("".to_string())
 }
