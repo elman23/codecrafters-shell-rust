@@ -54,6 +54,18 @@ fn write_file(path: &str, content: &str) {
         .expect(&format!("Failed to write to file {}", path));
 }
 
+fn owerwrite_file(path: &str, content: &str) {
+    let mut file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .open(path).expect(&format!("Failed to open file {}", path));
+
+    file.write_all(content.as_bytes())
+        .expect(&format!("Failed to write to file {}", path));
+}
+
 fn handle_history_command(command: &str, history: &mut Vec<String>) -> Output {
     let stdout: Vec<u8>;
     let n = command.split_whitespace().nth(1);
@@ -81,6 +93,31 @@ fn handle_history_command(command: &str, history: &mut Vec<String>) -> Output {
                         let mut content = content.join("\n");
                         content.push('\n');
                         let _ = write_file(path, &content);
+                    }
+                    if i == "-a" {
+                        // Append history to file.
+                        let path  = command.split_whitespace().nth(2).unwrap();
+                        
+                        let content: Vec<&str> = history.iter().map(|s| s.trim().split_once(" ").unwrap_or(("", "")).1.trim()).collect();
+                        let mut content = content.join("\n");
+                        content.push('\n');
+
+                        let text = std::fs::read_to_string(path).unwrap_or("".to_string());
+                        let pattern = format!("history -a {}", path);
+                        let index = text.find(&pattern);
+                        let substring: &str;
+                        match index {
+                            Some(n) => {
+                                substring  = &text[..(n + pattern.len() + 1)];
+                            },
+                            None => {
+                                substring = &text;
+                            }
+                        }
+                        let mut substring = substring.to_string();
+                        substring.push_str(&content);
+                        let _ = owerwrite_file(path, &substring);
+                        *history = vec![];
                     }
                     stdout = vec![];
                 }
