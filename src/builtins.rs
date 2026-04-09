@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use std::path::Path;
 use std::os::unix::fs::PermissionsExt;
 use std::ffi::OsStr;
-use std::process::Output;
+use std::process::{ExitStatus, Output};
 
 use crate::constants;
 use crate::utils;
@@ -32,6 +32,8 @@ pub fn execute_builtin(command: &str, history: &mut Vec<String>) -> Output {
         handle_cd_command(&command)
     } else if command.starts_with(constants::HISTORY_CMD) {
         handle_history_command(command, history)
+    } else if command.starts_with(constants::JOBS_CMD) {
+        handle_jobs_command()
     } else {
         Output { 
             status: ExitStatusExt::from_raw(0), 
@@ -197,6 +199,14 @@ pub fn handle_echo_command(command: &str) -> Output {
     Output { 
         status: ExitStatusExt::from_raw(0), 
         stdout: stdout, 
+        stderr: vec![]
+    }
+}
+
+pub fn handle_jobs_command() -> Output {
+    Output {
+        status: ExitStatusExt::from_raw(0),
+        stdout: vec![],
         stderr: vec![]
     }
 }
