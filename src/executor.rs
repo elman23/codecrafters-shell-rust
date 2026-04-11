@@ -127,6 +127,16 @@ fn get_command_path(s: &str) -> String {
 pub fn execute(mut command: String, history: &mut Vec<String>) -> std::io::Result<u8> {
     let result: Output;
 
+    // Check if background
+    let background = command.trim().ends_with(" &");
+
+    if background {
+        command = command.trim()[..command.len() - 3].to_string();
+        let pid = run_command_background(&command);
+        println!("[1] {}", pid);
+        return Ok(0);
+    }
+
     // Check if redirect
     let redirect_info = utils::get_redirect(&command);
     let redirect_stdout = redirect_info.redirect_stdout_file;
@@ -215,6 +225,19 @@ pub fn execute(mut command: String, history: &mut Vec<String>) -> std::io::Resul
         }
     }
     Ok(0)
+}
+
+fn run_command_background(command: &str) -> u32 {
+    let mut split = command.split(' ');
+    let cmd = split.next().unwrap_or("");
+    let args = get_command_args(&split.next().unwrap_or(""));
+    let child = Command::new(cmd)
+        .args(args)
+        .spawn()
+        .expect("Failed to start process!");
+
+    child.id()
+
 }
 
 pub fn execute_piped(input: &str, history: &mut Vec<String>) -> io::Result<std::process::Output> {
