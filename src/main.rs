@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use rustyline::Editor;
 use crate::my_helper::MyHelper;
 
@@ -18,11 +20,14 @@ fn repl_loop() {
     let mut history: Vec<String> =  Vec::new(); 
     load_history_from_file(&mut history);
 
+    // Jobs list
+    let mut jobs: HashMap<u8, String> = HashMap::new();
+
     loop {
         let input = rl.readline(constants::PROMPT).unwrap();
         rl.add_history_entry(input.as_str()).unwrap();
         history.push(format!("\t{}  {}", history.len() + 1, input.clone())); // TODO: Is there a better way?
-        let ec: std::io::Result<u8> = executor::execute(input, &mut history);
+        let ec: std::io::Result<u8> = executor::execute(input, &mut history, &mut jobs);
         match ec {  
             Ok(0) => { },
             _ => { break; }

@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, Write};
 use std::os::unix::process::ExitStatusExt;
@@ -124,16 +125,20 @@ fn get_command_path(s: &str) -> String {
     command_path
 }
 
-pub fn execute(mut command: String, history: &mut Vec<String>) -> std::io::Result<u8> {
+pub fn execute(mut command: String, 
+               history: &mut Vec<String>,
+               jobs: &mut HashMap<u8, String>) -> std::io::Result<u8> {
     let result: Output;
 
     // Check if background
     let background = command.trim().ends_with(" &");
 
     if background {
+        let job_number = jobs.keys().max().copied().unwrap_or(0) + 1;
+        jobs.insert(job_number, command.clone());
         command = command.trim()[..command.len() - 2].to_string();
         let pid = run_command_background(&command);
-        println!("[1] {}", pid);
+        println!("[{}] {}", job_number, pid);
         return Ok(0);
     }
 
@@ -149,7 +154,7 @@ pub fn execute(mut command: String, history: &mut Vec<String>) -> std::io::Resul
         command = command[..index].trim().to_string();
     }
 
-    match execute_piped(&command, history) {
+    match execute_piped(&command, history, jobs) {
         Ok(r) => {
             result = r;
             if command.starts_with(constants::EXIT_CMD) {
@@ -240,7 +245,9 @@ fn run_command_background(command: &str) -> u32 {
 
 }
 
-pub fn execute_piped(input: &str, history: &mut Vec<String>) -> io::Result<std::process::Output> {
+pub fn execute_piped(input: &str, 
+                     history: &mut Vec<String>,
+                     jobs: &mut HashMap<u8, String>) -> io::Result<std::process::Output> {
 
     let cmds: Vec<&str> = input
                         .split('|')
@@ -257,7 +264,7 @@ pub fn execute_piped(input: &str, history: &mut Vec<String>) -> io::Result<std::
     for (i, c) in cmds.iter().enumerate() {
 
         if builtins::is_builtin(&c.split(' ').next().unwrap()) {
-            let result: Output = builtins::execute_builtin(&c, history);
+            let result: Output = builtins::execute_builtin(&c, history, jobs);
             previous_ec = result.status;
             previous_out = match result.stdout.len() {
                 0 => None,

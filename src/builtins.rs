@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::io::{self, Error};
 use std::fs;
 use std::env;
@@ -15,7 +16,9 @@ pub fn is_builtin(cmd: &str) -> bool {
     constants::SHELL_BUILTINS.contains(&cmd)
 }
 
-pub fn execute_builtin(command: &str, history: &mut Vec<String>) -> Output {
+pub fn execute_builtin(command: &str, 
+                       history: &mut Vec<String>,
+                       jobs: &mut HashMap<u8, String>) -> Output {
     if command.trim() == constants::EXIT_CMD {
         Output { 
             status: ExitStatusExt::from_raw(1), 
@@ -33,7 +36,7 @@ pub fn execute_builtin(command: &str, history: &mut Vec<String>) -> Output {
     } else if command.starts_with(constants::HISTORY_CMD) {
         handle_history_command(command, history)
     } else if command.starts_with(constants::JOBS_CMD) {
-        handle_jobs_command()
+        handle_jobs_command(jobs)
     } else {
         Output { 
             status: ExitStatusExt::from_raw(0), 
@@ -203,7 +206,19 @@ pub fn handle_echo_command(command: &str) -> Output {
     }
 }
 
-pub fn handle_jobs_command() -> Output {
+pub fn handle_jobs_command(jobs: &mut HashMap<u8, String>) -> Output {
+
+    let mut items: Vec<_> = jobs.iter().collect();
+    items.sort_by_key(|(k, _)| *k);
+    for (k, v) in items {
+        let job_state = "Running";
+        if *k == 1 {
+            println!("[{}]+  {}                 {}", k, job_state, v);
+        } else {
+            println!("[{}]  {}                 {}", k, job_state, v);
+        }
+    }
+
     Output {
         status: ExitStatusExt::from_raw(0),
         stdout: vec![],
