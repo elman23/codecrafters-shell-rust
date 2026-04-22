@@ -131,7 +131,7 @@ pub fn execute(mut command: String, history: &mut Vec<String>) -> std::io::Resul
     let background = command.trim().ends_with(" &");
 
     if background {
-        command = command.trim()[..command.len() - 3].to_string();
+        command = command.trim()[..command.len() - 2].to_string();
         let pid = run_command_background(&command);
         println!("[1] {}", pid);
         return Ok(0);

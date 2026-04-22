@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use std::path::Path;
 use std::os::unix::fs::PermissionsExt;
 use std::ffi::OsStr;
-use std::process::{ExitStatus, Output};
+use std::process::Output;
 
 use crate::constants;
 use crate::utils;
