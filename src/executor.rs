@@ -4,6 +4,7 @@ use std::io::{self, Write};
 use std::os::unix::process::ExitStatusExt;
 use std::process::{Child, ChildStdout, Command, ExitStatus, Output, Stdio};
 use crate::builtins;
+use crate::jobs::Jobs;
 use crate::utils;
 use crate::constants;
 
@@ -127,17 +128,18 @@ fn get_command_path(s: &str) -> String {
 
 pub fn execute(mut command: String, 
                history: &mut Vec<String>,
-               jobs: &mut HashMap<u8, String>) -> std::io::Result<u8> {
+               jobs: &mut Jobs) -> std::io::Result<u8> {
     let result: Output;
 
     // Check if background
     let background = command.trim().ends_with(" &");
 
     if background {
-        let job_number = jobs.keys().max().copied().unwrap_or(0) + 1;
-        jobs.insert(job_number, command.clone());
+        let job_number = jobs.jobs_list.keys().max().copied().unwrap_or(0) + 1;
+        jobs.jobs_list.insert(job_number, command.clone());
         command = command.trim()[..command.len() - 2].to_string();
         let pid = run_command_background(&command);
+        jobs.process_list.insert(job_number, pid);
         println!("[{}] {}", job_number, pid);
         return Ok(0);
     }
@@ -247,7 +249,7 @@ fn run_command_background(command: &str) -> u32 {
 
 pub fn execute_piped(input: &str, 
                      history: &mut Vec<String>,
-                     jobs: &mut HashMap<u8, String>) -> io::Result<std::process::Output> {
+                     jobs: &mut Jobs) -> io::Result<std::process::Output> {
 
     let cmds: Vec<&str> = input
                         .split('|')

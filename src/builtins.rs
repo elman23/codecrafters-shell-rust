@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::io::{self, Error};
 use std::fs;
 use std::env;
@@ -10,6 +9,7 @@ use std::ffi::OsStr;
 use std::process::Output;
 
 use crate::constants;
+use crate::jobs::Jobs;
 use crate::utils;
 
 pub fn is_builtin(cmd: &str) -> bool {
@@ -18,7 +18,7 @@ pub fn is_builtin(cmd: &str) -> bool {
 
 pub fn execute_builtin(command: &str, 
                        history: &mut Vec<String>,
-                       jobs: &mut HashMap<u8, String>) -> Output {
+                       jobs: &mut Jobs) -> Output {
     if command.trim() == constants::EXIT_CMD {
         Output { 
             status: ExitStatusExt::from_raw(1), 
@@ -206,13 +206,23 @@ pub fn handle_echo_command(command: &str) -> Output {
     }
 }
 
-pub fn handle_jobs_command(jobs: &mut HashMap<u8, String>) -> Output {
+pub fn handle_jobs_command(jobs: &mut Jobs) -> Output {
 
-    let mut items: Vec<_> = jobs.iter().collect();
+    let mut items: Vec<_> = jobs.jobs_list.iter().collect();
     items.sort_by_key(|(k, _)| *k);
+    let mut done_jobs = Vec::new();
+
     for (k, v) in items {
-        let job_state = "Running";
-        let max_jobs_number = jobs.keys().max().copied().unwrap_or(0);
+        let pid = *jobs.process_list.get(k).unwrap();
+
+        let job_state = if utils::is_process_running(pid) {
+            "Running"
+        } else {
+            "Done"
+        };
+
+        let max_jobs_number = jobs.jobs_list.keys().max().copied().unwrap_or(0);
+
         if *k == max_jobs_number {
             println!("[{}]+  {}                 {}", k, job_state, v);
         } else if *k == max_jobs_number - 1 {
@@ -220,6 +230,15 @@ pub fn handle_jobs_command(jobs: &mut HashMap<u8, String>) -> Output {
         } else {
             println!("[{}]   {}                 {}", k, job_state, v);
         }
+
+        if job_state == "Done" {
+            done_jobs.push(*k);
+        }
+    }
+
+    for k in done_jobs {
+        jobs.jobs_list.remove(&k);
+        jobs.process_list.remove(&k);
     }
 
     Output {

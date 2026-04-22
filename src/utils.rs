@@ -1,5 +1,7 @@
 use std::{fs::OpenOptions, io::Write};
 
+use sysinfo::System;
+
 pub struct RedirectInfo {
     pub redirect_stdout_file: Option<String>,
     pub redirect_stderr_file: Option<String>,
@@ -129,4 +131,11 @@ pub fn owerwrite_file(path: &str, content: &str) {
 
 pub fn read_file_content(path: &str) -> String {
     std::fs::read_to_string(path).unwrap_or("".to_string())
+}
+
+pub fn is_process_running(pid: u32) -> bool {
+    let mut system = System::new_all();
+    system.refresh_processes();
+
+    system.process(sysinfo::Pid::from(pid as usize)).is_some()
 }

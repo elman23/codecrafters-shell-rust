@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use rustyline::Editor;
-use crate::my_helper::MyHelper;
+use crate::{jobs::Jobs, my_helper::MyHelper};
 
 mod executor;
 mod builtins;
@@ -9,6 +9,7 @@ mod utils;
 mod my_helper;
 mod path_checker;
 mod constants;
+mod jobs;
 
 fn repl_loop() {
     let config = rustyline::Config::builder().completion_type(rustyline::CompletionType::List).build();
@@ -21,7 +22,7 @@ fn repl_loop() {
     load_history_from_file(&mut history);
 
     // Jobs list
-    let mut jobs: HashMap<u8, String> = HashMap::new();
+    let mut jobs = Jobs::new();
 
     loop {
         let input = rl.readline(constants::PROMPT).unwrap();
