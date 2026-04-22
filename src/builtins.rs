@@ -212,10 +212,13 @@ pub fn handle_jobs_command(jobs: &mut HashMap<u8, String>) -> Output {
     items.sort_by_key(|(k, _)| *k);
     for (k, v) in items {
         let job_state = "Running";
-        if *k == 1 {
+        let max_jobs_number = jobs.keys().max().copied().unwrap_or(0);
+        if *k == max_jobs_number {
             println!("[{}]+  {}                 {}", k, job_state, v);
+        } else if *k == max_jobs_number - 1 {
+            println!("[{}]-  {}                 {}", k, job_state, v);
         } else {
-            println!("[{}]  {}                 {}", k, job_state, v);
+            println!("[{}]   {}                 {}", k, job_state, v);
         }
     }
 
