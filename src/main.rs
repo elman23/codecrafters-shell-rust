@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use rustyline::Editor;
 use crate::{jobs::Jobs, my_helper::MyHelper};
 

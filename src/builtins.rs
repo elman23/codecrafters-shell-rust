@@ -224,11 +224,23 @@ pub fn handle_jobs_command(jobs: &mut Jobs) -> Output {
         let max_jobs_number = jobs.jobs_list.keys().max().copied().unwrap_or(0);
 
         if *k == max_jobs_number {
-            println!("[{}]+  {}                 {}", k, job_state, v);
+            if job_state != "Done" {
+                println!("[{}]+  {}                 {}", k, job_state, v);
+            } else {
+                println!("[{}]+  {}                 {}", k, job_state, v.replace(" &", ""));
+            }
         } else if *k == max_jobs_number - 1 {
-            println!("[{}]-  {}                 {}", k, job_state, v);
+            if job_state != "Done" {
+                println!("[{}]-  {}                 {}", k, job_state, v);
+            } else {
+                println!("[{}]-  {}                 {}", k, job_state, v.replace(" &", ""));
+            }
         } else {
-            println!("[{}]   {}                 {}", k, job_state, v);
+            if job_state != "Done" {
+                println!("[{}]   {}                 {}", k, job_state, v);
+            } else {
+                println!("[{}]   {}                 {}", k, job_state, v.replace(" &", ""));
+            }
         }
 
         if job_state == "Done" {

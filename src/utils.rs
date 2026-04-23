@@ -1,6 +1,6 @@
 use std::{fs::OpenOptions, io::Write};
 
-use sysinfo::System;
+use sysinfo::{Pid, ProcessStatus, ProcessesToUpdate, System};
 
 pub struct RedirectInfo {
     pub redirect_stdout_file: Option<String>,
@@ -134,8 +134,14 @@ pub fn read_file_content(path: &str) -> String {
 }
 
 pub fn is_process_running(pid: u32) -> bool {
-    let mut system = System::new_all();
-    system.refresh_processes();
+    let mut system = System::new();
+    let pid = Pid::from(pid as usize);
+    system.refresh_processes(ProcessesToUpdate::Some(&[pid]), false);
 
-    system.process(sysinfo::Pid::from(pid as usize)).is_some()
+    if let Some(process) = system.process(pid) {
+        process.status() != ProcessStatus::Zombie
+    } else {
+        false
+    }
+
 }
