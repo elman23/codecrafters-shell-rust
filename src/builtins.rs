@@ -207,43 +207,38 @@ pub fn handle_echo_command(command: &str) -> Output {
 }
 
 pub fn handle_jobs_command(jobs: &mut Jobs) -> Output {
+    let mut keys: Vec<_> = jobs.jobs_list.keys().copied().collect();
+    keys.sort();
 
-    let mut items: Vec<_> = jobs.jobs_list.iter().collect();
-    items.sort_by_key(|(k, _)| *k);
     let mut done_jobs = Vec::new();
+    let total = keys.len();
 
-    for (k, v) in items {
+    for (i, k) in keys.iter().enumerate() {
+        let v = jobs.jobs_list.get(k).unwrap();
         let pid = *jobs.process_list.get(k).unwrap();
 
-        let job_state = if utils::is_process_running(pid) {
-            "Running"
+        let is_running = utils::is_process_running(pid);
+        let job_state = if is_running { "Running" } else { "Done" };
+
+        // Determine marker: + (last), - (second last), or space
+        let marker = if i == total - 1 {
+            "+"
+        } else if i == total.saturating_sub(2) {
+            "-"
         } else {
-            "Done"
+            " "
         };
 
-        let max_jobs_number = jobs.jobs_list.keys().max().copied().unwrap_or(0);
-
-        if *k == max_jobs_number {
-            if job_state != "Done" {
-                println!("[{}]+  {}                 {}", k, job_state, v);
-            } else {
-                println!("[{}]+  {}                 {}", k, job_state, v.replace(" &", ""));
-            }
-        } else if *k == max_jobs_number - 1 {
-            if job_state != "Done" {
-                println!("[{}]-  {}                 {}", k, job_state, v);
-            } else {
-                println!("[{}]-  {}                 {}", k, job_state, v.replace(" &", ""));
-            }
+        // Clean command if done
+        let display_cmd = if is_running {
+            v.to_string()
         } else {
-            if job_state != "Done" {
-                println!("[{}]   {}                 {}", k, job_state, v);
-            } else {
-                println!("[{}]   {}                 {}", k, job_state, v.replace(" &", ""));
-            }
-        }
+            v.replace(" &", "").to_string()
+        };
 
-        if job_state == "Done" {
+        println!("[{}]{}  {:<8} {}", k, marker, job_state, display_cmd);
+
+        if !is_running {
             done_jobs.push(*k);
         }
     }
@@ -256,7 +251,7 @@ pub fn handle_jobs_command(jobs: &mut Jobs) -> Output {
     Output {
         status: ExitStatusExt::from_raw(0),
         stdout: vec![],
-        stderr: vec![]
+        stderr: vec![],
     }
 }
 
