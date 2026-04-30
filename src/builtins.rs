@@ -38,6 +38,8 @@ pub fn execute_builtin(command: &str,
         handle_history_command(command, history)
     } else if command.starts_with(constants::JOBS_CMD) {
         handle_jobs_command(jobs)
+    } else if command.starts_with(constants::COMPLETE_CMD) {
+        handle_complete_command(command)
     } else {
         Output { 
             status: ExitStatusExt::from_raw(0), 
@@ -203,6 +205,19 @@ pub fn handle_echo_command(command: &str) -> Output {
     Output { 
         status: ExitStatusExt::from_raw(0), 
         stdout: stdout, 
+        stderr: vec![]
+    }
+}
+
+pub fn handle_complete_command(command: &str) -> Output {
+    let mut split = command.split_whitespace();
+    let _ = split.next().unwrap();
+    let _ = split.next().unwrap();
+    let argument = split.next().unwrap();
+    println!("complete: {}: no completion specification", argument);
+    Output { 
+        status: ExitStatusExt::from_raw(0), 
+        stdout: vec![], 
         stderr: vec![]
     }
 }
