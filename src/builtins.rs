@@ -10,6 +10,7 @@ use std::process::Output;
 
 use crate::constants;
 use crate::jobs::Jobs;
+use crate::jobs;
 use crate::utils;
 
 pub fn is_builtin(cmd: &str) -> bool {
@@ -210,7 +211,7 @@ pub fn handle_jobs_command(jobs: &mut Jobs) -> Output {
     let mut keys: Vec<_> = jobs.jobs_list.keys().copied().collect();
     keys.sort();
 
-    let mut done_jobs = Vec::new();
+    // let mut done_jobs = Vec::new();
     let total = keys.len();
 
     for (i, k) in keys.iter().enumerate() {
@@ -238,15 +239,17 @@ pub fn handle_jobs_command(jobs: &mut Jobs) -> Output {
 
         println!("[{}]{}  {:<8} {}", k, marker, job_state, display_cmd);
 
-        if !is_running {
-            done_jobs.push(*k);
-        }
+        // if !is_running {
+        //     done_jobs.push(*k);
+        // }
     }
 
-    for k in done_jobs {
-        jobs.jobs_list.remove(&k);
-        jobs.process_list.remove(&k);
-    }
+    // for k in done_jobs {
+    //     jobs.jobs_list.remove(&k);
+    //     jobs.process_list.remove(&k);
+    // }
+
+    jobs::reap_jobs(jobs, false);
 
     Output {
         status: ExitStatusExt::from_raw(0),
