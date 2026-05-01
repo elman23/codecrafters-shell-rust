@@ -1,5 +1,5 @@
 use rustyline::Editor;
-use crate::{jobs::Jobs, my_helper::MyHelper};
+use crate::{complete::Complete, jobs::Jobs, my_helper::MyHelper};
 
 mod executor;
 mod builtins;
@@ -8,6 +8,7 @@ mod my_helper;
 mod path_checker;
 mod constants;
 mod jobs;
+mod complete;
 
 fn repl_loop() {
     let config = rustyline::Config::builder().completion_type(rustyline::CompletionType::List).build();
@@ -21,13 +22,17 @@ fn repl_loop() {
 
     // Jobs list
     let mut jobs = Jobs::new();
+    let mut complete = Complete::new();
 
     loop {
         jobs::reap_jobs(&mut jobs, true);
         let input = rl.readline(constants::PROMPT).unwrap();
         rl.add_history_entry(input.as_str()).unwrap();
         history.push(format!("\t{}  {}", history.len() + 1, input.clone())); // TODO: Is there a better way?
-        let ec: std::io::Result<u8> = executor::execute(input, &mut history, &mut jobs);
+        let ec: std::io::Result<u8> = executor::execute(input, 
+                                                        &mut history, 
+                                                        &mut jobs,
+                                                        &mut complete);
         match ec {  
             Ok(0) => { },
             _ => { break; }

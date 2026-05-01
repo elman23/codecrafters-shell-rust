@@ -3,6 +3,7 @@ use std::io::{self, Write};
 use std::os::unix::process::ExitStatusExt;
 use std::process::{Child, ChildStdout, Command, ExitStatus, Output, Stdio};
 use crate::builtins;
+use crate::complete::Complete;
 use crate::jobs::Jobs;
 use crate::utils;
 use crate::constants;
@@ -127,7 +128,8 @@ fn get_command_path(s: &str) -> String {
 
 pub fn execute(mut command: String, 
                history: &mut Vec<String>,
-               jobs: &mut Jobs) -> std::io::Result<u8> {
+               jobs: &mut Jobs,
+               complete: &mut Complete) -> std::io::Result<u8> {
     let result: Output;
 
     // Check if background
@@ -155,7 +157,7 @@ pub fn execute(mut command: String,
         command = command[..index].trim().to_string();
     }
 
-    match execute_piped(&command, history, jobs) {
+    match execute_piped(&command, history, jobs, complete) {
         Ok(r) => {
             result = r;
             if command.starts_with(constants::EXIT_CMD) {
@@ -248,7 +250,8 @@ fn run_command_background(command: &str) -> u32 {
 
 pub fn execute_piped(input: &str, 
                      history: &mut Vec<String>,
-                     jobs: &mut Jobs) -> io::Result<std::process::Output> {
+                     jobs: &mut Jobs,
+                     complete: &mut Complete) -> io::Result<std::process::Output> {
 
     let cmds: Vec<&str> = input
                         .split('|')
@@ -265,7 +268,7 @@ pub fn execute_piped(input: &str,
     for (i, c) in cmds.iter().enumerate() {
 
         if builtins::is_builtin(&c.split(' ').next().unwrap()) {
-            let result: Output = builtins::execute_builtin(&c, history, jobs);
+            let result: Output = builtins::execute_builtin(&c, history, jobs, complete);
             previous_ec = result.status;
             previous_out = match result.stdout.len() {
                 0 => None,

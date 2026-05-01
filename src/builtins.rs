@@ -12,6 +12,7 @@ use crate::constants;
 use crate::jobs::Jobs;
 use crate::jobs;
 use crate::utils;
+use crate::complete::{self, Complete};
 
 pub fn is_builtin(cmd: &str) -> bool {
     constants::SHELL_BUILTINS.contains(&cmd)
@@ -19,7 +20,8 @@ pub fn is_builtin(cmd: &str) -> bool {
 
 pub fn execute_builtin(command: &str, 
                        history: &mut Vec<String>,
-                       jobs: &mut Jobs) -> Output {
+                       jobs: &mut Jobs,
+                       complete: &mut Complete) -> Output {
     if command.trim() == constants::EXIT_CMD {
         Output { 
             status: ExitStatusExt::from_raw(1), 
@@ -39,7 +41,7 @@ pub fn execute_builtin(command: &str,
     } else if command.starts_with(constants::JOBS_CMD) {
         handle_jobs_command(jobs)
     } else if command.starts_with(constants::COMPLETE_CMD) {
-        handle_complete_command(command)
+        handle_complete_command(command, complete)
     } else {
         Output { 
             status: ExitStatusExt::from_raw(0), 
@@ -209,12 +211,27 @@ pub fn handle_echo_command(command: &str) -> Output {
     }
 }
 
-pub fn handle_complete_command(command: &str) -> Output {
+pub fn handle_complete_command(command: &str, complete: &mut Complete) -> Output {
     let mut split = command.split_whitespace();
-    let _ = split.next().unwrap();
-    let _ = split.next().unwrap();
-    let argument = split.next().unwrap();
-    println!("complete: {}: no completion specification", argument);
+    let _ = split.next().unwrap(); // This is the 'complete' command.
+    let flag = split.next().unwrap_or("");
+    let argument = split.next().unwrap_or("");
+    let executable = split.next().unwrap_or("");
+
+    if flag == "-C" {
+        complete.scripts.insert(executable.to_string(), argument.to_string());
+    } else if flag == "-p" {
+        let default_string = String::from("");
+        let script = complete.scripts.get(argument).unwrap_or(&default_string);
+        if !script.is_empty() {
+            println!("complete -C '{}' {}", script, argument);
+        } else {
+            println!("complete: {}: no completion specification", argument);
+        }
+    } else {
+        println!("complete: {}: no completion specification", argument);
+    }
+
     Output { 
         status: ExitStatusExt::from_raw(0), 
         stdout: vec![], 
