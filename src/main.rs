@@ -1,77 +1,103 @@
+use std::sync::{Arc, Mutex};
 use rustyline::Editor;
-use crate::{complete::Complete, jobs::Jobs, my_helper::MyHelper};
+use rustyline::error::ReadlineError;
+use crate::{complete::Complete, jobs::Jobs, helper::MyHelper};
 
 mod executor;
 mod builtins;
 mod utils;
-mod my_helper;
+mod helper;
 mod path_checker;
 mod constants;
 mod jobs;
 mod complete;
 
 fn repl_loop() {
-    let config = rustyline::Config::builder().completion_type(rustyline::CompletionType::List).build();
+    let config = rustyline::Config::builder()
+        .completion_type(rustyline::CompletionType::List)
+        .build();
     let mut rl = Editor::with_config(config).unwrap();
-    let helper = MyHelper::new();
-    rl.set_helper(Some(helper));    
-
-    // History
-    let mut history: Vec<String> =  Vec::new(); 
-    load_history_from_file(&mut history);
 
     // Jobs list
     let mut jobs = Jobs::new();
-    let mut complete = Complete::new();
+
+    // Complete script list — wrapped in Arc<Mutex> so MyHelper always sees updates
+    let complete = Arc::new(Mutex::new(Complete::new()));
+
+    // Helper (tab completion) shares the same Complete instance
+    let helper = MyHelper::new(Arc::clone(&complete));
+    rl.set_helper(Some(helper));
+
+    // History
+    let mut history: Vec<String> = Vec::new();
+    load_history_from_file(&mut history);
 
     loop {
         jobs::reap_jobs(&mut jobs, true);
-        let input = rl.readline(constants::PROMPT).unwrap();
+
+        let input = match rl.readline(constants::PROMPT) {
+            Ok(line) => line,
+            // Ctrl+D: end of input — exit cleanly
+            Err(ReadlineError::Eof) => break,
+            // Ctrl+C: interrupt — exit cleanly
+            Err(ReadlineError::Interrupted) => break,
+            Err(e) => {
+                eprintln!("Readline error: {e}");
+                break;
+            }
+        };
+
         rl.add_history_entry(input.as_str()).unwrap();
-        history.push(format!("\t{}  {}", history.len() + 1, input.clone())); // TODO: Is there a better way?
-        let ec: std::io::Result<u8> = executor::execute(input, 
-                                                        &mut history, 
-                                                        &mut jobs,
-                                                        &mut complete);
-        match ec {  
-            Ok(0) => { },
-            _ => { break; }
+        history.push(format!("\t{}  {}", history.len() + 1, input.clone()));
+
+        let ec: std::io::Result<u8> = executor::execute(
+            input,
+            &mut history,
+            &mut jobs,
+            &complete,   // pass Arc reference so executor can register new scripts
+        );
+
+        match ec {
+            Ok(0) => {}
+            _ => break,
         }
     }
 
-    save_history_to_file(&mut history);
+    save_history_to_file(&history);
 }
 
 fn load_history_from_file(history: &mut Vec<String>) {
-    let history_file = std::env::var("HISTFILE");
-    match history_file {
+    match std::env::var("HISTFILE") {
         Ok(f) => {
             let file_content = utils::read_file_content(&f);
-            let mut lines: Vec<String> = file_content.split('\n')
-                                                 .filter(|s| !s.is_empty())
-                                                 .enumerate()
-                                                 .map(|(i, s)| format!("\t{}  {}", i, s))
-                                                 .collect();
+            let mut lines: Vec<String> = file_content
+                .split('\n')
+                .filter(|s| !s.is_empty())
+                .enumerate()
+                .map(|(i, s)| format!("\t{}  {}", i, s))
+                .collect();
             history.append(&mut lines);
-        },
-        Err(_) => { }
+        }
+        Err(_) => {}
     }
 }
 
-fn save_history_to_file(history: &Vec<String>) {
-    let history_file = std::env::var("HISTFILE");
-    match history_file {
+// Takes &[String] instead of &Vec<String> — more idiomatic, accepts any contiguous slice
+fn save_history_to_file(history: &[String]) {
+    match std::env::var("HISTFILE") {
         Ok(f) => {
-            let content: Vec<&str> = history.iter().map(|s| s.trim().split_once(" ").unwrap_or(("", "")).1.trim()).collect();
+            let content: Vec<&str> = history
+                .iter()
+                .map(|s| s.trim().split_once(' ').unwrap_or(("", "")).1.trim())
+                .collect();
             let mut content = content.join("\n");
             content.push('\n');
             let _ = utils::write_file(&f, &content);
-        },
-        Err(_) => { }
+        }
+        Err(_) => {}
     }
 }
 
 fn main() {
-    // Shell's infinite REPL loop.
     repl_loop();
 }

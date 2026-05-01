@@ -1,26 +1,34 @@
-use std::fs::{self, File, OpenOptions};
+use std::fs::{File, OpenOptions};
 use std::io::{self, Write};
 use std::os::unix::process::ExitStatusExt;
+use std::path::Path;
 use std::process::{Child, ChildStdout, Command, ExitStatus, Output, Stdio};
+use std::sync::{Arc, Mutex};
 use crate::builtins;
 use crate::complete::Complete;
 use crate::jobs::Jobs;
 use crate::utils;
 use crate::constants;
 
-fn clean_last_newline(s: &String) -> String {
-    s.strip_suffix('\n').unwrap_or(s).to_string()
+// ── String helpers ────────────────────────────────────────────────────────────
+
+fn clean_last_newline(s: &str) -> &str {
+    s.strip_suffix('\n').unwrap_or(s)
 }
 
-fn print_cleaned(s: &String) {
-    if s != "" {
+fn print_cleaned(s: &str) {
+    if !s.is_empty() {
         let _ = writeln!(std::io::stdout(), "{}", clean_last_newline(s));
     }
 }
 
+// ── Argument / quoting helpers ────────────────────────────────────────────────
+
+/// Split `input` on `ch` (a quote character), collecting both quoted segments
+/// and the unquoted text that surrounds them into a single flat token list.
 fn split_char(ch: char, input: &str) -> Vec<String> {
     let double_quotes = ch == '"';
-    
+
     let mut result = Vec::new();
     let mut in_quotes = false;
     let mut escaped = false;
@@ -32,16 +40,30 @@ fn split_char(ch: char, input: &str) -> Vec<String> {
             escaped = false;
             continue;
         }
+        if c == '\\' && (double_quotes || !in_quotes) {
+            escaped = true;
+            continue;
+        }
         if c == ch {
-            if in_quotes {
+            // Toggling in/out of a quoted region — flush the accumulated token
+            // only when leaving a quoted section so that adjacent unquoted text
+            // merges correctly with what came before.
+            in_quotes = !in_quotes;
+            if !in_quotes && !current.is_empty() {
                 result.push(std::mem::take(&mut current));
             }
-            in_quotes = !in_quotes;
-        } else if c == '\\' && (double_quotes || !in_quotes) {
-            escaped = true;
+        } else if !in_quotes && c == ' ' {
+            // Word boundary outside quotes
+            if !current.is_empty() {
+                result.push(std::mem::take(&mut current));
+            }
         } else {
             current.push(c);
         }
+    }
+
+    if !current.is_empty() {
+        result.push(current);
     }
 
     result
@@ -49,8 +71,8 @@ fn split_char(ch: char, input: &str) -> Vec<String> {
 
 fn get_command_args(args: &str) -> Vec<String> {
     let mut handle_slashes = false;
-    let mut args = if args.contains('\"') {
-        split_char('\"', args)
+    let mut args: Vec<String> = if args.contains('"') {
+        split_char('"', args)
     } else if args.contains('\'') {
         split_char('\'', args)
     } else {
@@ -63,7 +85,7 @@ fn get_command_args(args: &str) -> Vec<String> {
             if arg.contains("\\\\") {
                 *arg = arg.replace("\\\\", "\\");
             } else {
-                *arg = arg.replace("\\", "");
+                *arg = arg.replace('\\', "");
             }
         }
         *arg = arg.trim().to_string();
@@ -84,18 +106,14 @@ fn cleanup_name(name: &str) -> String {
             escaped = false;
             continue;
         }
-
         if c == '\\' && in_double_quote {
             escaped = true;
             continue;
         }
-
         if c == '\'' && !in_double_quote {
             in_single_quote = !in_single_quote;
-            continue;
         } else if c == '"' && !in_single_quote {
             in_double_quote = !in_double_quote;
-            continue;
         } else {
             cleaned.push(c);
         }
@@ -106,255 +124,261 @@ fn cleanup_name(name: &str) -> String {
 
 fn get_command_path(s: &str) -> String {
     let mut command_path = String::new();
-    
     let mut in_double_quote = false;
     let mut in_single_quote = false;
-    
+
     for c in s.chars() {
         if c == ' ' && !in_double_quote && !in_single_quote {
             break;
         }
         if c == '"' {
-            in_double_quote = !in_double_quote;        
+            in_double_quote = !in_double_quote;
         }
         if c == '\'' {
-            in_single_quote = !in_single_quote
+            in_single_quote = !in_single_quote;
         }
         command_path.push(c);
     }
-    
+
     command_path
 }
 
-pub fn execute(mut command: String, 
-               history: &mut Vec<String>,
-               jobs: &mut Jobs,
-               complete: &mut Complete) -> std::io::Result<u8> {
-    let result: Output;
+// ── Redirect helpers ──────────────────────────────────────────────────────────
 
-    // Check if background
-    let background = command.trim().ends_with(" &");
+fn write_to_file(path: &str, content: &[u8], append: bool) -> io::Result<()> {
+    let content_str = String::from_utf8_lossy(content);
+    let cleaned = clean_last_newline(&content_str);
+    if cleaned.is_empty() {
+        return Ok(());
+    }
+    let mut file = if append {
+        OpenOptions::new().append(true).create(true).open(path)?
+    } else {
+        File::create(path)?
+    };
+    writeln!(file, "{}", cleaned)
+}
 
-    if background {
+// ── Public entry points ───────────────────────────────────────────────────────
+
+pub fn execute(
+    mut command: String,
+    history: &mut Vec<String>,
+    jobs: &mut Jobs,
+    complete: &Arc<Mutex<Complete>>,
+) -> std::io::Result<u8> {
+
+    // ── Background job ────────────────────────────────────────────────────────
+    let trimmed = command.trim();
+    if trimmed.ends_with(" &") {
+        let bare = trimmed[..trimmed.len() - 2].trim().to_string();
         let job_number = jobs.jobs_list.keys().max().copied().unwrap_or(0) + 1;
-        jobs.jobs_list.insert(job_number, command.clone());
-        command = command.trim()[..command.len() - 2].to_string();
-        let pid = run_command_background(&command);
+        jobs.jobs_list.insert(job_number, bare.clone());
+        let pid = run_command_background(&bare);
         jobs.process_list.insert(job_number, pid);
         println!("[{}] {}", job_number, pid);
         return Ok(0);
     }
 
-    // Check if redirect
+    // ── Redirect detection ────────────────────────────────────────────────────
     let redirect_info = utils::get_redirect(&command);
     let redirect_stdout = redirect_info.redirect_stdout_file;
     let redirect_stderr = redirect_info.redirect_stderr_file;
-    let index = redirect_info.file_index_start;
-    let append_stdout = redirect_info.append_stdout;
-    let append_stderr = redirect_info.append_stderr;
+    let append_stdout   = redirect_info.append_stdout;
+    let append_stderr   = redirect_info.append_stderr;
+
     if redirect_stdout.is_some() || redirect_stderr.is_some() {
-        let index = index.unwrap() - 1;
+        let index = redirect_info.file_index_start.unwrap() - 1;
         command = command[..index].trim().to_string();
     }
 
-    match execute_piped(&command, history, jobs, complete) {
-        Ok(r) => {
-            result = r;
-            if command.starts_with(constants::EXIT_CMD) {
-                return Ok(1);
-            }
-        },
+    // ── Execute ───────────────────────────────────────────────────────────────
+    let result = match execute_piped(&command, history, jobs, complete) {
+        Ok(r) => r,
         Err(_) => {
             let _ = writeln!(std::io::stderr(), "{}: command not found", command);
             return Ok(0);
         }
+    };
+
+    if command.starts_with(constants::EXIT_CMD) {
+        return Ok(1);
     }
 
-    if redirect_stdout.is_some() {
-        let stdout_file = redirect_stdout.unwrap();
-        if !fs::exists(&stdout_file).unwrap() {
-            let _ = File::create(&stdout_file);
-        }
-        if !result.stdout.is_empty() {
+    // ── Output routing ────────────────────────────────────────────────────────
+    if let Some(ref path) = redirect_stdout {
+        // Always create the file — real shells create the redirect target even
+        // when the command produces no stdout (e.g. `ls nonexistent >> file`).
+        // For append mode we must not truncate an existing file, so we open with
+        // `.append(true)`; for overwrite mode we truncate via `File::create`.
+        if !Path::new(path).exists() {
             if append_stdout {
-                let mut file = OpenOptions::new()
-                    .append(true)
-                    .create(true)
-                    .open(&stdout_file)
-                    .unwrap();
-                let cleaned_output = clean_last_newline(&String::from_utf8(result.stdout).unwrap());
-                if cleaned_output != "" {
-                    let _ = writeln!(file, "{}", cleaned_output).unwrap();
-                }
+                OpenOptions::new().create(true).append(true).open(path)?;
             } else {
-                let mut file = File::create(stdout_file).unwrap();
-                let cleaned_output = clean_last_newline(&String::from_utf8(result.stdout).unwrap());
-                if cleaned_output != "" {
-                    let _ = writeln!(file, "{}", cleaned_output).unwrap(); 
-                }
+                File::create(path)?;
             }
-        }
-        if !result.stderr.is_empty() {
-            let _ = writeln!(std::io::stderr(), "{}", &String::from_utf8(result.stderr).unwrap().trim());
-        }
-    } else if redirect_stderr.is_some() {
-        let stderr_file = redirect_stderr.unwrap();
-        if !fs::exists(&stderr_file).unwrap() {
-            let _ = File::create(&stderr_file);
         }
         if !result.stdout.is_empty() {
-            print_cleaned(&String::from_utf8(result.stdout).unwrap()); 
+            write_to_file(path, &result.stdout, append_stdout)?;
         }
         if !result.stderr.is_empty() {
+            let _ = writeln!(
+                std::io::stderr(), "{}",
+                String::from_utf8_lossy(&result.stderr).trim()
+            );
+        }
+    } else if let Some(ref path) = redirect_stderr {
+        if !result.stdout.is_empty() {
+            print_cleaned(&String::from_utf8_lossy(&result.stdout));
+        }
+        // Same guarantee: always create the file even when stderr is empty.
+        if !Path::new(path).exists() {
             if append_stderr {
-                let mut file = OpenOptions::new()
-                    .append(true)
-                    .create(true)
-                    .open(&stderr_file)
-                    .unwrap();
-                let cleaned_error = clean_last_newline(&String::from_utf8(result.stderr).unwrap());
-                if cleaned_error != "" {
-                    let _ = writeln!(file, "{}", cleaned_error).unwrap();
-                }  
+                OpenOptions::new().create(true).append(true).open(path)?;
             } else {
-                let mut file = File::create(stderr_file).unwrap();
-                let cleaned_error = clean_last_newline(&String::from_utf8(result.stderr).unwrap());
-                if cleaned_error != "" {
-                    let _ = writeln!(file, "{}", cleaned_error).unwrap();
-                }
+                File::create(path)?;
             }
+        }
+        if !result.stderr.is_empty() {
+            write_to_file(path, &result.stderr, append_stderr)?;
         }
     } else {
         if !result.stdout.is_empty() {
-            print_cleaned(&String::from_utf8(result.stdout).unwrap());
+            print_cleaned(&String::from_utf8_lossy(&result.stdout));
         }
         if !result.stderr.is_empty() {
-            let _ = writeln!(std::io::stderr(), "{}", &String::from_utf8(result.stderr).unwrap().trim());
+            let _ = writeln!(
+                std::io::stderr(), "{}",
+                String::from_utf8_lossy(&result.stderr).trim()
+            );
         }
     }
+
     Ok(0)
 }
 
 fn run_command_background(command: &str) -> u32 {
-    let mut split = command.split(' ');
-    let cmd = split.next().unwrap_or("");
-    let args = get_command_args(&split.next().unwrap_or(""));
-    let child = Command::new(cmd)
-        .args(args)
+    // Collect ALL tokens, not just the first argument
+    let mut parts = command.split_whitespace();
+    let cmd  = parts.next().unwrap_or("");
+    // Remaining tokens are arguments — collect them all
+    let args: Vec<&str> = parts.collect();
+
+    Command::new(cmd)
+        .args(&args)
         .spawn()
-        .expect("Failed to start process!");
-
-    child.id()
-
+        .expect("Failed to start background process")
+        .id()
 }
 
-pub fn execute_piped(input: &str, 
-                     history: &mut Vec<String>,
-                     jobs: &mut Jobs,
-                     complete: &mut Complete) -> io::Result<std::process::Output> {
+pub fn execute_piped(
+    input: &str,
+    history: &mut Vec<String>,
+    jobs: &mut Jobs,
+    complete: &Arc<Mutex<Complete>>,
+) -> io::Result<Output> {
 
-    let cmds: Vec<&str> = input
-                        .split('|')
-                        .map(|c| c.trim())
-                        .collect(); 
+    let cmds: Vec<&str> = input.split('|').map(|c| c.trim()).collect();
 
     let mut children: Vec<Child> = Vec::new();
-    let mut previous: Option<ChildStdout> = None;
+    let mut previous_stdout: Option<ChildStdout> = None;
     let mut previous_ec: ExitStatus = ExitStatusExt::from_raw(0);
     let mut previous_out: Option<Vec<u8>> = None;
     let mut previous_err: Option<Vec<u8>> = None;
     let mut is_last_builtin = false;
 
     for (i, c) in cmds.iter().enumerate() {
+        let first_word = c.split_whitespace().next().unwrap_or("");
+        let is_last = i == cmds.len() - 1;
 
-        if builtins::is_builtin(&c.split(' ').next().unwrap()) {
-            let result: Output = builtins::execute_builtin(&c, history, jobs, complete);
-            previous_ec = result.status;
-            previous_out = match result.stdout.len() {
-                0 => None,
-                _ => {
-                    // Add new line to STDOUT if not present.
-                    Some(result.stdout)
-                },
-            };
-            previous_err = match result.stderr.len() {
-                0 => None,
-                _ => {
-                    // Add new line to STDERR if not present.
-                    Some(result.stderr)
-                },
-            };
-            previous = None;
-            if i == cmds.len() - 1 {
+        if builtins::is_builtin(first_word) {
+            let result: Output = builtins::execute_builtin(c, history, jobs, complete);
+            previous_ec  = result.status;
+            previous_out = if result.stdout.is_empty() { None } else { Some(result.stdout) };
+            previous_err = if result.stderr.is_empty() { None } else { Some(result.stderr) };
+            previous_stdout = None;
+            if is_last {
                 is_last_builtin = true;
             }
             continue;
         }
 
-        // Command
+        // ── Build Command ─────────────────────────────────────────────────────
         let command_path = get_command_path(c);
-        let cmd_name = command_path.split("/").last().unwrap_or("Failed to parse command name");
+        // Use only the last path component so that e.g. "/usr/bin/grep" works
+        let cmd_name = Path::new(&command_path)
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("unknown");
         let cmd_name = cleanup_name(cmd_name);
-        
+
         let mut cmd = Command::new(&cmd_name);
-        
-        // Arguments
-        let args = get_command_args(&c[command_path.len()..]);
-        cmd.args(args);
+        cmd.args(get_command_args(&c[command_path.len()..]));
 
-        if let Some(stdin) = previous.take() {
+        // ── Stdin wiring ──────────────────────────────────────────────────────
+        if let Some(stdin) = previous_stdout.take() {
             cmd.stdin(stdin);
-        }
-
-        if previous_out.is_some() || previous_err.is_some() {
+        } else if previous_out.is_some() || previous_err.is_some() {
             cmd.stdin(Stdio::piped());
         }
 
-        if i < cmds.len() - 1 || cmds.len() == 1 {
+        // ── Stdout/stderr capture ─────────────────────────────────────────────
+        if !is_last || cmds.len() == 1 {
             cmd.stdout(Stdio::piped());
             cmd.stderr(Stdio::piped());
         }
 
         let mut child = cmd.spawn()?;
 
+        // Feed previous builtin output into this process's stdin
         if let Some(s) = previous_out.take() {
-            child.stdin.take().unwrap().write_all(&s)?;
+            if let Some(mut stdin) = child.stdin.take() {
+                stdin.write_all(&s)?;
+            }
         } else if let Some(s) = previous_err.take() {
-            child.stdin.take().unwrap().write_all(&s)?;
+            if let Some(mut stdin) = child.stdin.take() {
+                stdin.write_all(&s)?;
+            }
         }
 
-        if i < cmds.len() - 1 {
-            previous = child.stdout.take();
-            previous_out = None;
-            previous_err = None;
+        if !is_last {
+            previous_stdout = child.stdout.take();
         }
 
         children.push(child);
     }
 
-    let mut output: Option<Output> = None;
-
-    if !children.is_empty() {
-        if !is_last_builtin {
-            let last = children.pop().unwrap();
-            output = Some(last.wait_with_output()?);
-        }
+    // ── Wait for children ─────────────────────────────────────────────────────
+    let output: Option<Output> = if !children.is_empty() && !is_last_builtin {
+        let last = children.pop().unwrap();
+        let out = last.wait_with_output()?;
         for mut child in children {
             child.wait().unwrap();
         }
-    }
+        Some(out)
+    } else {
+        for mut child in children {
+            child.wait().unwrap();
+        }
+        None
+    };
 
     if previous_out.is_none() && previous_err.is_none() {
-        Ok(output.unwrap_or(Output { 
-            status: previous_ec, 
-            stdout: vec![], 
-            stderr: vec![] 
+        Ok(output.unwrap_or(Output {
+            status: previous_ec,
+            stdout: vec![],
+            stderr: vec![],
         }))
     } else {
         Ok(Output {
             status: previous_ec,
-            stdout: previous_out.unwrap_or(vec![]),
-            stderr: previous_err.unwrap_or(vec![]),
+            stdout: previous_out.unwrap_or_default(),
+            stderr: previous_err.unwrap_or_default(),
         })
     }
+}
+
+/// Run a script via `sh -c` and return its combined output.
+pub fn execute_script(script: &str) -> io::Result<Output> {
+    Command::new("sh").arg("-c").arg(script).output()
 }

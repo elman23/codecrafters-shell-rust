@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+#[derive(Clone, Debug)]
 pub struct Complete {
     pub scripts: HashMap<String, String>,
 }
