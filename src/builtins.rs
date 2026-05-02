@@ -252,6 +252,10 @@ pub fn handle_complete_command(command: &str, complete: &Arc<Mutex<Complete>>) -
             // Return via stdout so the caller can pipe/redirect it
             ok_output(line.into_bytes())
         }
+        "-r" => {
+            complete.scripts.remove(argument);
+            empty_ok()
+        }
         _ => {
             let msg = format!("complete: {}: invalid option\n", flag);
             make_output(1, vec![], msg.into_bytes())
