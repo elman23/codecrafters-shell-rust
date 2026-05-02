@@ -8,6 +8,7 @@ pub const CD_CMD: &str = "cd";
 pub const HISTORY_CMD: &str = "history";
 pub const JOBS_CMD: &str = "jobs";
 pub const COMPLETE_CMD: &str = "complete";
+pub const DECLARE_CMD: &str = "declare";
 pub const HOME_DIR: &str = "~";
 
 pub const PROMPT: &str = "$ ";
@@ -22,4 +23,5 @@ pub const SHELL_BUILTINS: &[&str] = &[EXIT_CMD,
                                       CD_CMD, 
                                       HISTORY_CMD,
                                       JOBS_CMD,
-                                      COMPLETE_CMD];
+                                      COMPLETE_CMD,
+                                      DECLARE_CMD];
