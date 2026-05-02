@@ -1,3 +1,5 @@
+// ── Shell commands ────────────────────────────────────────────────────────────
+
 pub const EXIT_CMD: &str = "exit";
 pub const ECHO_CMD: &str = "echo";
 pub const TYPE_CMD: &str = "type";
@@ -9,6 +11,8 @@ pub const COMPLETE_CMD: &str = "complete";
 pub const HOME_DIR: &str = "~";
 
 pub const PROMPT: &str = "$ ";
+
+// ── Shell builtins ────────────────────────────────────────────────────────────
 
 // TODO: Improve. This requires that each new built-in command shall be added manually.
 pub const SHELL_BUILTINS: &[&str] = &[EXIT_CMD, 

@@ -378,7 +378,7 @@ pub fn execute_piped(
     }
 }
 
-/// Run a script via `sh -c` and return its combined output.
-pub fn execute_script(script: &str) -> io::Result<Output> {
-    Command::new("sh").arg("-c").arg(script).output()
+/// Run a script and return its combined output.
+pub fn execute_script(script: &str, args: Vec<&str>) -> io::Result<Output> {
+    Command::new(script).args(args).output()
 }

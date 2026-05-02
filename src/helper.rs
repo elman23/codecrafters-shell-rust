@@ -53,8 +53,24 @@ impl Completer for MyHelper {
             // The key for script lookup is the COMMAND (first word), not the
             // partial token being typed. E.g. for "git ch<TAB>" the command is
             // "git", not "ch".
-            let command = line_to_cursor.split_whitespace().next().unwrap_or("");
+            let words: Vec<&str> = line_to_cursor.split_whitespace().collect();
+            let command = words.first().copied().unwrap_or("");
 
+            // `token` is the partial word at the cursor (may be empty if the
+            // line ends with a space). Use the collected word list to find the
+            // word that immediately precedes it:
+            //   - cursor mid-word  ("git checkout br<TAB>") → prev = words[-2]
+            //   - cursor after gap ("git checkout <TAB>")   → prev = words[-1]
+            let word_being_completed = token;
+            let previous_word = if line_to_cursor.ends_with(' ') {
+                words.last().copied().unwrap_or("")
+            } else {
+                words.len()
+                    .checked_sub(2)
+                    .map(|i| words[i])
+                    .unwrap_or("")
+            };
+                        
             // Clone the script string out of the lock so we don't hold the
             // mutex across the executor call.
             let script = {
@@ -64,7 +80,11 @@ impl Completer for MyHelper {
 
             if let Some(script) = script {
                 if !script.is_empty() {
-                    match executor::execute_script(&script) {
+                    let mut args: Vec<&str> = Vec::new();
+                    args.push(command);            // $1 — command name
+                    args.push(word_being_completed); // $2 — word being completed
+                    args.push(previous_word);     // $3 — previous word
+                    match executor::execute_script(&script, args) {
                         Ok(output) => {
                             let stdout = String::from_utf8_lossy(&output.stdout);
 
