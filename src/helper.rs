@@ -1,3 +1,4 @@
+use std::env;
 use std::sync::{Arc, Mutex};
 use rustyline::Context;
 use rustyline::completion::{Completer, FilenameCompleter, Pair};
@@ -81,9 +82,13 @@ impl Completer for MyHelper {
             if let Some(script) = script {
                 if !script.is_empty() {
                     let mut args: Vec<&str> = Vec::new();
-                    args.push(command);            // $1 — command name
-                    args.push(word_being_completed); // $2 — word being completed
-                    args.push(previous_word);     // $3 — previous word
+                    args.push(command);                 // $1 — command name
+                    args.push(word_being_completed);    // $2 — word being completed
+                    args.push(previous_word);           // $3 — previous word
+                    unsafe {
+                        env::set_var("COMP_LINE", line_to_cursor);
+                        env::set_var("COMP_POINT", line_to_cursor.len().to_string());
+                    }
                     match executor::execute_script(&script, args) {
                         Ok(output) => {
                             let stdout = String::from_utf8_lossy(&output.stdout);
