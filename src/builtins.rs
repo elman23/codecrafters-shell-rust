@@ -71,6 +71,8 @@ pub fn execute_builtin(
         handle_jobs_command(jobs)
     } else if trimmed.starts_with(constants::COMPLETE_CMD) {
         handle_complete_command(trimmed, complete)
+    } else if trimmed.starts_with(constants::DECLARE_CMD) {
+        handle_declare_command(trimmed)
     } else {
         empty_ok()
     }
@@ -258,6 +260,23 @@ pub fn handle_complete_command(command: &str, complete: &Arc<Mutex<Complete>>) -
         }
         _ => {
             let msg = format!("complete: {}: invalid option\n", flag);
+            make_output(1, vec![], msg.into_bytes())
+        }
+    }
+}
+
+// ── declare ──────────────────────────────────────────────────────────────────
+
+pub fn handle_declare_command(command: &str) -> Output {
+    let mut split = command.split_whitespace();
+    split.next(); // consume "declare"
+
+    let flag       = split.next().unwrap_or("");
+    let argument   = split.next().unwrap_or("");
+
+    match flag {
+        _ => {
+            let msg = format!("declare: {}: not found\n", argument);
             make_output(1, vec![], msg.into_bytes())
         }
     }
