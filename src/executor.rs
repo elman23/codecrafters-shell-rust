@@ -1,14 +1,15 @@
+use crate::builtins;
+use crate::complete::Complete;
+use crate::constants;
+use crate::jobs::Jobs;
+use crate::utils;
+use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
 use std::io::{self, Write};
 use std::os::unix::process::ExitStatusExt;
 use std::path::Path;
 use std::process::{Child, ChildStdout, Command, ExitStatus, Output, Stdio};
 use std::sync::{Arc, Mutex};
-use crate::builtins;
-use crate::complete::Complete;
-use crate::jobs::Jobs;
-use crate::utils;
-use crate::constants;
 
 // ── String helpers ────────────────────────────────────────────────────────────
 
@@ -166,8 +167,8 @@ pub fn execute(
     history: &mut Vec<String>,
     jobs: &mut Jobs,
     complete: &Arc<Mutex<Complete>>,
+    variables: &mut HashMap<String, String>,
 ) -> std::io::Result<u8> {
-
     // ── Background job ────────────────────────────────────────────────────────
     let trimmed = command.trim();
     if trimmed.ends_with(" &") {
@@ -184,8 +185,8 @@ pub fn execute(
     let redirect_info = utils::get_redirect(&command);
     let redirect_stdout = redirect_info.redirect_stdout_file;
     let redirect_stderr = redirect_info.redirect_stderr_file;
-    let append_stdout   = redirect_info.append_stdout;
-    let append_stderr   = redirect_info.append_stderr;
+    let append_stdout = redirect_info.append_stdout;
+    let append_stderr = redirect_info.append_stderr;
 
     if redirect_stdout.is_some() || redirect_stderr.is_some() {
         let index = redirect_info.file_index_start.unwrap() - 1;
@@ -193,7 +194,7 @@ pub fn execute(
     }
 
     // ── Execute ───────────────────────────────────────────────────────────────
-    let result = match execute_piped(&command, history, jobs, complete) {
+    let result = match execute_piped(&command, history, jobs, complete, variables) {
         Ok(r) => r,
         Err(_) => {
             let _ = writeln!(std::io::stderr(), "{}: command not found", command);
@@ -223,7 +224,8 @@ pub fn execute(
         }
         if !result.stderr.is_empty() {
             let _ = writeln!(
-                std::io::stderr(), "{}",
+                std::io::stderr(),
+                "{}",
                 String::from_utf8_lossy(&result.stderr).trim()
             );
         }
@@ -248,7 +250,8 @@ pub fn execute(
         }
         if !result.stderr.is_empty() {
             let _ = writeln!(
-                std::io::stderr(), "{}",
+                std::io::stderr(),
+                "{}",
                 String::from_utf8_lossy(&result.stderr).trim()
             );
         }
@@ -260,7 +263,7 @@ pub fn execute(
 fn run_command_background(command: &str) -> u32 {
     // Collect ALL tokens, not just the first argument
     let mut parts = command.split_whitespace();
-    let cmd  = parts.next().unwrap_or("");
+    let cmd = parts.next().unwrap_or("");
     // Remaining tokens are arguments — collect them all
     let args: Vec<&str> = parts.collect();
 
@@ -276,8 +279,8 @@ pub fn execute_piped(
     history: &mut Vec<String>,
     jobs: &mut Jobs,
     complete: &Arc<Mutex<Complete>>,
+    variables: &mut HashMap<String, String>,
 ) -> io::Result<Output> {
-
     let cmds: Vec<&str> = input.split('|').map(|c| c.trim()).collect();
 
     let mut children: Vec<Child> = Vec::new();
@@ -292,10 +295,18 @@ pub fn execute_piped(
         let is_last = i == cmds.len() - 1;
 
         if builtins::is_builtin(first_word) {
-            let result: Output = builtins::execute_builtin(c, history, jobs, complete);
-            previous_ec  = result.status;
-            previous_out = if result.stdout.is_empty() { None } else { Some(result.stdout) };
-            previous_err = if result.stderr.is_empty() { None } else { Some(result.stderr) };
+            let result: Output = builtins::execute_builtin(c, history, jobs, complete, variables);
+            previous_ec = result.status;
+            previous_out = if result.stdout.is_empty() {
+                None
+            } else {
+                Some(result.stdout)
+            };
+            previous_err = if result.stderr.is_empty() {
+                None
+            } else {
+                Some(result.stderr)
+            };
             previous_stdout = None;
             if is_last {
                 is_last_builtin = true;

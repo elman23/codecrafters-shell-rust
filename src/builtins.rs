@@ -1,18 +1,19 @@
-use std::io::{self, Error};
-use std::fs;
+use std::collections::HashMap;
 use std::env;
+use std::ffi::OsStr;
+use std::fs;
+use std::io::{self, Error};
+use std::os::unix::fs::PermissionsExt;
 use std::os::unix::process::ExitStatusExt;
 use std::path::{Path, PathBuf};
-use std::os::unix::fs::PermissionsExt;
-use std::ffi::OsStr;
 use std::process::Output;
 use std::sync::{Arc, Mutex};
 
-use crate::constants;
-use crate::jobs::Jobs;
-use crate::jobs;
-use crate::utils;
 use crate::complete::Complete;
+use crate::constants;
+use crate::jobs;
+use crate::jobs::Jobs;
+use crate::utils;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -47,6 +48,7 @@ pub fn execute_builtin(
     history: &mut Vec<String>,
     jobs: &mut Jobs,
     complete: &Arc<Mutex<Complete>>,
+    variables: &mut HashMap<String, String>,
 ) -> Output {
     // Strip leading/trailing whitespace once for all comparisons
     let trimmed = command.trim();
@@ -72,7 +74,7 @@ pub fn execute_builtin(
     } else if trimmed.starts_with(constants::COMPLETE_CMD) {
         handle_complete_command(trimmed, complete)
     } else if trimmed.starts_with(constants::DECLARE_CMD) {
-        handle_declare_command(trimmed)
+        handle_declare_command(trimmed, variables)
     } else {
         empty_ok()
     }
@@ -146,7 +148,7 @@ fn handle_history_command(command: &str, history: &mut Vec<String>) -> Output {
                         let pattern = format!("history -a {}", path);
                         let base = match existing.find(&pattern) {
                             Some(idx) => &existing[..idx + pattern.len() + 1],
-                            None      => &existing,
+                            None => &existing,
                         };
 
                         let combined = format!("{}{}", base, content);
@@ -228,8 +230,8 @@ pub fn handle_complete_command(command: &str, complete: &Arc<Mutex<Complete>>) -
     let mut split = command.split_whitespace();
     split.next(); // consume "complete"
 
-    let flag       = split.next().unwrap_or("");
-    let argument   = split.next().unwrap_or("");
+    let flag = split.next().unwrap_or("");
+    let argument = split.next().unwrap_or("");
     let executable = split.next().unwrap_or("");
 
     let mut complete = complete.lock().unwrap();
@@ -238,7 +240,9 @@ pub fn handle_complete_command(command: &str, complete: &Arc<Mutex<Complete>>) -
         "-C" => {
             // Register a completion script for `executable`
             // e.g. `complete -C my_script git`
-            complete.scripts.insert(executable.to_string(), argument.to_string());
+            complete
+                .scripts
+                .insert(executable.to_string(), argument.to_string());
             empty_ok()
         }
         "-p" => {
@@ -267,17 +271,38 @@ pub fn handle_complete_command(command: &str, complete: &Arc<Mutex<Complete>>) -
 
 // ── declare ──────────────────────────────────────────────────────────────────
 
-pub fn handle_declare_command(command: &str) -> Output {
+pub fn handle_declare_command(command: &str, variables: &mut HashMap<String, String>) -> Output {
     let mut split = command.split_whitespace();
     split.next(); // consume "declare"
 
-    let flag       = split.next().unwrap_or("");
-    let argument   = split.next().unwrap_or("");
+    let flag = split.next().unwrap_or("");
+    let argument = split.next().unwrap_or("");
 
     match flag {
+        "-p" => {
+            let name = argument;
+            let maybe_value = variables.get(name);
+            match maybe_value {
+                Some(value) => {
+                    println!("declare -- {}=\"{}\"", name, value);
+                }
+                None => {
+                    println!("declare: {}: not found", name);
+                }
+            }
+            make_output(0, vec![], vec![])
+        }
         _ => {
-            let msg = format!("declare: {}: not found\n", argument);
-            make_output(1, vec![], msg.into_bytes())
+            if flag.contains("=") {
+                let mut name_value = flag.split("=");
+                let name = String::from(name_value.next().unwrap_or(""));
+                let value = String::from(name_value.next().unwrap_or(""));
+                variables.insert(name, value);
+                make_output(0, vec![], vec![])
+            } else {
+                let msg = format!("declare: {}: not found\n", argument);
+                make_output(1, vec![], msg.into_bytes())
+            }
         }
     }
 }
@@ -291,11 +316,11 @@ pub fn handle_jobs_command(jobs: &mut Jobs) -> Output {
     let mut lines = String::new();
 
     for (i, k) in keys.iter().enumerate() {
-        let v   = jobs.jobs_list.get(k).unwrap();
+        let v = jobs.jobs_list.get(k).unwrap();
         let pid = *jobs.process_list.get(k).unwrap();
 
         let is_running = utils::is_process_running(pid);
-        let job_state  = if is_running { "Running" } else { "Done" };
+        let job_state = if is_running { "Running" } else { "Done" };
 
         let marker = if i == total - 1 {
             '+'
@@ -311,7 +336,10 @@ pub fn handle_jobs_command(jobs: &mut Jobs) -> Output {
             v.replace(" &", "")
         };
 
-        lines.push_str(&format!("[{}]{}  {:<8} {}\n", k, marker, job_state, display_cmd));
+        lines.push_str(&format!(
+            "[{}]{}  {:<8} {}\n",
+            k, marker, job_state, display_cmd
+        ));
     }
 
     jobs::reap_jobs(jobs, false);
@@ -325,7 +353,7 @@ pub fn handle_jobs_command(jobs: &mut Jobs) -> Output {
 pub fn print_pwd() -> Output {
     match env::current_dir() {
         Ok(dir) => ok_output(dir.into_os_string().into_string().unwrap().into_bytes()),
-        Err(e)  => err_output(e.to_string().into_bytes()),
+        Err(e) => err_output(e.to_string().into_bytes()),
     }
 }
 
@@ -352,7 +380,7 @@ fn check_type(command: &str) -> Output {
         for file in get_directory_content(&path) {
             // Use file_name() (not file_stem()) to match the exact binary name,
             // including any extension (e.g. "python3", "node").
-            let filename   = file.file_name();
+            let filename = file.file_name();
             let executable = is_executable(&file).unwrap_or(false);
             if filename == Some(OsStr::new(command)) && executable {
                 let msg = format!("{} is {}", command, file.display());
@@ -411,7 +439,7 @@ pub fn handle_cd_command(command: &str) -> Output {
     };
 
     match change_dir(&target) {
-        Ok(_)  => empty_ok(),
+        Ok(_) => empty_ok(),
         Err(e) => make_output(1, vec![], e.to_string().into_bytes()),
     }
 }

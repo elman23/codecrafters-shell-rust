@@ -1,16 +1,19 @@
-use std::sync::{Arc, Mutex};
+use crate::{complete::Complete, helper::MyHelper, jobs::Jobs};
 use rustyline::Editor;
 use rustyline::error::ReadlineError;
-use crate::{complete::Complete, jobs::Jobs, helper::MyHelper};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 
-mod executor;
 mod builtins;
-mod utils;
-mod helper;
-mod path_checker;
-mod constants;
-mod jobs;
 mod complete;
+mod constants;
+mod executor;
+mod helper;
+mod jobs;
+mod path_checker;
+mod utils;
 
 fn repl_loop() {
     let config = rustyline::Config::builder()
@@ -20,6 +23,9 @@ fn repl_loop() {
 
     // Jobs list
     let mut jobs = Jobs::new();
+
+    // Variables list
+    let mut variables: HashMap<String, String> = HashMap::new();
 
     // Complete script list — wrapped in Arc<Mutex> so MyHelper always sees updates
     let complete = Arc::new(Mutex::new(Complete::new()));
@@ -54,7 +60,8 @@ fn repl_loop() {
             input,
             &mut history,
             &mut jobs,
-            &complete,   // pass Arc reference so executor can register new scripts
+            &complete,      // pass Arc reference so executor can register new scripts
+            &mut variables, // TODO: Improve using Arc and Mutex
         );
 
         match ec {
