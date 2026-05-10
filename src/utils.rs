@@ -16,7 +16,10 @@ pub struct RedirectInfo {
 }
 
 #[derive(Clone, Copy)]
-enum RedirectMode { Stdout, Stderr }
+enum RedirectMode {
+    Stdout,
+    Stderr,
+}
 
 /// Parse the first unquoted redirect operator (`>`, `>>`, `2>`, `2>>`, `1>`,
 /// `1>>`) found in `input` and return metadata about it.
@@ -82,10 +85,14 @@ pub fn get_redirect(input: &str) -> RedirectInfo {
         let at_word_boundary = i == 0 || chars[i - 1] == ' ';
         if (c == '1' || c == '2') && at_word_boundary {
             if let Some('>') = chars.get(i + 1).copied() {
-                redirect_index = byte_offset;   // points at the digit
-                mode = Some(if c == '2' { RedirectMode::Stderr } else { RedirectMode::Stdout });
+                redirect_index = byte_offset; // points at the digit
+                mode = Some(if c == '2' {
+                    RedirectMode::Stderr
+                } else {
+                    RedirectMode::Stdout
+                });
                 byte_offset += c.len_utf8() + '>'.len_utf8();
-                i += 2;                          // consume digit + '>'
+                i += 2; // consume digit + '>'
                 continue;
             }
             // Not followed by `>` — treat as a normal character
@@ -138,7 +145,7 @@ pub fn write_file(path: &str, content: &str) -> io::Result<()> {
     let mut file = OpenOptions::new()
         .create(true)
         .write(true)
-        .truncate(true)      // was `false` — left stale bytes after shorter writes
+        .truncate(true) // was `false` — left stale bytes after shorter writes
         .open(path)?;
     file.write_all(content.as_bytes())
 }
@@ -172,4 +179,21 @@ pub fn is_process_running(pid: u32) -> bool {
         .process(sysinfo_pid)
         .map(|p| p.status() != ProcessStatus::Zombie)
         .unwrap_or(false)
+}
+
+pub fn validate(name: &str, declaration: &str) -> bool {
+    let chars: Vec<char> = name.chars().collect();
+    for (i, c) in chars.iter().enumerate() {
+        if i == 0 {
+            if !(c.is_alphabetic() || c == &'_') {
+                println!("declare: `{}': not a valid identifier", declaration);
+                return false;
+            }
+        }
+        if !(c.is_alphanumeric() || c == &'_') {
+            println!("declare: `{}': not a valid identifier", declaration);
+            return false;
+        }
+    }
+    true
 }

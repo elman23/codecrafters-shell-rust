@@ -296,6 +296,9 @@ pub fn handle_declare_command(command: &str, variables: &mut HashMap<String, Str
             if flag.contains("=") {
                 let mut name_value = flag.split("=");
                 let name = String::from(name_value.next().unwrap_or(""));
+                if !utils::validate(&name, flag) {
+                    return make_output(1, vec![], vec![]);
+                }
                 let value = String::from(name_value.next().unwrap_or(""));
                 variables.insert(name, value);
                 make_output(0, vec![], vec![])
