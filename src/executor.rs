@@ -4,6 +4,8 @@ use crate::constants;
 use crate::jobs::Jobs;
 use crate::utils;
 use std::collections::HashMap;
+use std::env::var;
+use std::fmt::Arguments;
 use std::fs::{File, OpenOptions};
 use std::io::{self, Write};
 use std::os::unix::process::ExitStatusExt;
@@ -70,7 +72,7 @@ fn split_char(ch: char, input: &str) -> Vec<String> {
     result
 }
 
-fn get_command_args(args: &str) -> Vec<String> {
+fn get_command_args(args: &str, variables: &HashMap<String, String>) -> Vec<String> {
     let mut handle_slashes = false;
     let mut args: Vec<String> = if args.contains('"') {
         split_char('"', args)
@@ -92,7 +94,8 @@ fn get_command_args(args: &str) -> Vec<String> {
         *arg = arg.trim().to_string();
     }
 
-    args
+    // args
+    utils::expand_args(args, variables)
 }
 
 fn cleanup_name(name: &str) -> String {
@@ -175,7 +178,7 @@ pub fn execute(
         let bare = trimmed[..trimmed.len() - 2].trim().to_string();
         let job_number = jobs.jobs_list.keys().max().copied().unwrap_or(0) + 1;
         jobs.jobs_list.insert(job_number, bare.clone());
-        let pid = run_command_background(&bare);
+        let pid = run_command_background(&bare, variables);
         jobs.process_list.insert(job_number, pid);
         println!("[{}] {}", job_number, pid);
         return Ok(0);
@@ -260,12 +263,15 @@ pub fn execute(
     Ok(0)
 }
 
-fn run_command_background(command: &str) -> u32 {
+fn run_command_background(command: &str, variables: &HashMap<String, String>) -> u32 {
     // Collect ALL tokens, not just the first argument
     let mut parts = command.split_whitespace();
     let cmd = parts.next().unwrap_or("");
     // Remaining tokens are arguments — collect them all
     let args: Vec<&str> = parts.collect();
+
+    // TODO: Expand arguments.
+    let args = utils::expand_args(args, variables);
 
     Command::new(cmd)
         .args(&args)
@@ -324,7 +330,7 @@ pub fn execute_piped(
         let cmd_name = cleanup_name(cmd_name);
 
         let mut cmd = Command::new(&cmd_name);
-        cmd.args(get_command_args(&c[command_path.len()..]));
+        cmd.args(get_command_args(&c[command_path.len()..], variables));
 
         // ── Stdin wiring ──────────────────────────────────────────────────────
         if let Some(stdin) = previous_stdout.take() {
@@ -390,6 +396,12 @@ pub fn execute_piped(
 }
 
 /// Run a script and return its combined output.
-pub fn execute_script(script: &str, args: Vec<&str>) -> io::Result<Output> {
+pub fn execute_script(
+    script: &str,
+    args: Vec<&str>,
+    variables: &HashMap<String, String>,
+) -> io::Result<Output> {
+    // TODO: Expand arguments
+    let args = utils::expand_args(args, variables);
     Command::new(script).args(args).output()
 }

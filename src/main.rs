@@ -31,7 +31,8 @@ fn repl_loop() {
     let complete = Arc::new(Mutex::new(Complete::new()));
 
     // Helper (tab completion) shares the same Complete instance
-    let helper = MyHelper::new(Arc::clone(&complete));
+    let variables_arg = Arc::new(Mutex::new(variables.clone()));
+    let helper = MyHelper::new(Arc::clone(&complete), Arc::clone(&variables_arg));
     rl.set_helper(Some(helper));
 
     // History

@@ -1,12 +1,13 @@
-use std::env;
-use std::sync::{Arc, Mutex};
-use rustyline::Context;
-use rustyline::completion::{Completer, FilenameCompleter, Pair};
+use crate::complete::Complete;
 use crate::constants::SHELL_BUILTINS;
 use crate::executor;
 use crate::path_checker::list_executables;
-use crate::complete::Complete;
+use rustyline::Context;
+use rustyline::completion::{Completer, FilenameCompleter, Pair};
 use rustyline_derive::{Helper, Highlighter, Hinter, Validator};
+use std::collections::HashMap;
+use std::env::{self};
+use std::sync::{Arc, Mutex};
 
 #[derive(Helper, Hinter, Validator, Highlighter)]
 pub struct MyHelper {
@@ -14,10 +15,14 @@ pub struct MyHelper {
     file_completion: FilenameCompleter,
     // Arc<Mutex<>> so registered scripts are always visible — no stale clone
     complete: Arc<Mutex<Complete>>,
+    variables: Arc<Mutex<HashMap<String, String>>>,
 }
 
 impl MyHelper {
-    pub fn new(complete: Arc<Mutex<Complete>>) -> Self {
+    pub fn new(
+        complete: Arc<Mutex<Complete>>,
+        variables: Arc<Mutex<HashMap<String, String>>>,
+    ) -> Self {
         let builtins = SHELL_BUILTINS
             .iter()
             .map(|s| s.to_string())
@@ -28,11 +33,12 @@ impl MyHelper {
             executables,
             file_completion: FilenameCompleter::new(),
             complete, // no redundant .clone() — value is already owned
+            variables,
         }
     }
 }
 
-impl Completer for MyHelper {
+impl<'a> Completer for MyHelper {
     type Candidate = Pair;
 
     fn complete(
@@ -45,10 +51,7 @@ impl Completer for MyHelper {
 
         if line_to_cursor.contains(' ') {
             // ── Argument completion ──────────────────────────────────────────
-            let start = line_to_cursor
-                .rfind(' ')
-                .map(|i| i + 1)
-                .unwrap_or(0);
+            let start = line_to_cursor.rfind(' ').map(|i| i + 1).unwrap_or(0);
             let token = &line_to_cursor[start..];
 
             // The key for script lookup is the COMMAND (first word), not the
@@ -66,12 +69,9 @@ impl Completer for MyHelper {
             let previous_word = if line_to_cursor.ends_with(' ') {
                 words.last().copied().unwrap_or("")
             } else {
-                words.len()
-                    .checked_sub(2)
-                    .map(|i| words[i])
-                    .unwrap_or("")
+                words.len().checked_sub(2).map(|i| words[i]).unwrap_or("")
             };
-                        
+
             // Clone the script string out of the lock so we don't hold the
             // mutex across the executor call.
             let script = {
@@ -82,14 +82,14 @@ impl Completer for MyHelper {
             if let Some(script) = script {
                 if !script.is_empty() {
                     let mut args: Vec<&str> = Vec::new();
-                    args.push(command);                 // $1 — command name
-                    args.push(word_being_completed);    // $2 — word being completed
-                    args.push(previous_word);           // $3 — previous word
+                    args.push(command); // $1 — command name
+                    args.push(word_being_completed); // $2 — word being completed
+                    args.push(previous_word); // $3 — previous word
                     unsafe {
                         env::set_var("COMP_LINE", line_to_cursor);
                         env::set_var("COMP_POINT", line_to_cursor.len().to_string());
                     }
-                    match executor::execute_script(&script, args) {
+                    match executor::execute_script(&script, args, &self.variables.lock().unwrap()) {
                         Ok(output) => {
                             let stdout = String::from_utf8_lossy(&output.stdout);
 
@@ -112,8 +112,7 @@ impl Completer for MyHelper {
             }
 
             // Fallback: filename completion
-            let (start, mut matches) =
-                self.file_completion.complete_path_unsorted(line, pos)?;
+            let (start, mut matches) = self.file_completion.complete_path_unsorted(line, pos)?;
 
             matches.sort_by(|a, b| a.display.cmp(&b.display));
 
