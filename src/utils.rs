@@ -199,36 +199,6 @@ pub fn validate(name: &str, declaration: &str) -> bool {
     true
 }
 
-// pub fn expand_args(args: Vec<String>, variables: &HashMap<String, String>) -> Vec<String> {
-//     let mut expanded_args: Vec<String> = Vec::new();
-//     for arg in args {
-//         if arg.trim().starts_with("$") {
-//             let default_arg = String::from("");
-//             let expanded_arg = String::from(variables.get(&arg[1..]).unwrap_or(&default_arg));
-//             expanded_args.push(expanded_arg);
-//         } else {
-//             expanded_args.push(arg);
-//         }
-//     }
-//     expanded_args
-// }
-
-// pub fn expand_args<'a, S>(args: Vec<S>, variables: &HashMap<String, String>) -> Vec<String>
-// where
-//     S: AsRef<str> + 'a,
-// {
-//     args.into_iter()
-//         .map(|arg| {
-//             let arg = arg.as_ref();
-//             if let Some(key) = arg.trim().strip_prefix('$') {
-//                 variables.get(key).cloned().unwrap_or_default()
-//             } else {
-//                 arg.to_string()
-//             }
-//         })
-//         .collect()
-// }
-
 pub fn expand_args<'a, S>(args: Vec<S>, variables: &HashMap<String, String>) -> Vec<String>
 where
     S: AsRef<str> + 'a,
@@ -264,9 +234,8 @@ fn expand_string(s: &str, variables: &HashMap<String, String>) -> String {
                 if let Some(value) = variables.get(&key) {
                     result.push_str(&expand_string(value, variables));
                 }
-                // else: leave as is (or push '$' + key if you want to keep unmatched variables)
             } else {
-                result.push(c);
+                result.push(c); // Leave as is
             }
         } else {
             result.push(c);
