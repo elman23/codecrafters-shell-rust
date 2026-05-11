@@ -4,8 +4,6 @@ use crate::constants;
 use crate::jobs::Jobs;
 use crate::utils;
 use std::collections::HashMap;
-use std::env::var;
-use std::fmt::Arguments;
 use std::fs::{File, OpenOptions};
 use std::io::{self, Write};
 use std::os::unix::process::ExitStatusExt;

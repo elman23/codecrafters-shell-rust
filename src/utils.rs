@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs::OpenOptions;
 use std::io::{self, Write};
 
@@ -204,42 +204,74 @@ where
     S: AsRef<str> + 'a,
 {
     args.into_iter()
-        .map(|arg| expand_string(arg.as_ref(), variables))
+        .map(|arg| expand_string_with_vars(arg.as_ref(), variables))
         .collect()
 }
 
-fn expand_string(s: &str, variables: &HashMap<String, String>) -> String {
-    // If the string is just a variable reference, expand it directly
-    if let Some(key) = s.trim().strip_prefix('$') {
-        return variables
-            .get(key)
-            .map(|v| expand_string(v, variables))
-            .unwrap_or_default();
-    }
-
-    // Otherwise, scan for $VAR inside the string and replace all occurrences
+fn expand_string(
+    s: &str,
+    variables: &HashMap<String, String>,
+    visited: &mut HashSet<String>,
+) -> String {
     let mut result = String::new();
     let mut chars = s.chars().peekable();
+
     while let Some(c) = chars.next() {
         if c == '$' {
             let mut key = String::new();
+            let braced = if chars.peek() == Some(&'{') {
+                chars.next(); // consume '{'
+                true
+            } else {
+                false
+            };
+
+            // Collect the key
             while let Some(&next) = chars.peek() {
-                if next.is_ascii_alphanumeric() || next == '_' {
+                if braced && next == '}' {
+                    chars.next(); // consume '}'
+                    break;
+                } else if next.is_ascii_alphanumeric() || next == '_' {
                     key.push(chars.next().unwrap());
                 } else {
                     break;
                 }
             }
+
             if !key.is_empty() {
                 if let Some(value) = variables.get(&key) {
-                    result.push_str(&expand_string(value, variables));
+                    // Check for cycles
+                    if visited.contains(&key) {
+                        // Cycle detected, return the variable as-is to avoid infinite recursion
+                        result.push_str(&format!("${}", key));
+                    } else {
+                        visited.insert(key.clone());
+                        let expanded = expand_string(value, variables, visited);
+                        visited.remove(&key);
+                        result.push_str(&expanded);
+                    }
+                } else {
+                    // Variable not found, leave as-is
+                    if braced {
+                        result.push_str(&format!("${{{}}}", key));
+                    } else {
+                        result.push_str(&format!("${}", key));
+                    }
                 }
             } else {
-                result.push(c); // Leave as is
+                // No key found, just push the '$'
+                result.push(c);
             }
         } else {
             result.push(c);
         }
     }
+
     result
+}
+
+// Wrapper function for external use
+pub fn expand_string_with_vars(s: &str, variables: &HashMap<String, String>) -> String {
+    let mut visited = HashSet::new();
+    expand_string(s, variables, &mut visited)
 }
