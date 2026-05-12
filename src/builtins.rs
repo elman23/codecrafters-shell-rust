@@ -62,7 +62,7 @@ pub fn execute_builtin(
         // Bare `echo` with no arguments
         ok_output(b"\n".to_vec())
     } else if trimmed.starts_with(&format!("{} ", constants::ECHO_CMD)) {
-        handle_echo_command(trimmed)
+        handle_echo_command(trimmed, variables)
     } else if trimmed.starts_with(&format!("{} ", constants::TYPE_CMD)) {
         handle_type_command(trimmed)
     } else if trimmed.starts_with(&format!("{} ", constants::CD_CMD)) {
@@ -186,7 +186,7 @@ fn history_to_file_content(history: &[String]) -> String {
 
 // ── echo ──────────────────────────────────────────────────────────────────────
 
-fn parse_echo_args(input: &str) -> String {
+fn parse_echo_args(input: &str, variables: &HashMap<String, String>) -> String {
     let mut in_double_quotes = false;
     let mut in_single_quotes = false;
     let mut escaped = false;
@@ -212,14 +212,16 @@ fn parse_echo_args(input: &str) -> String {
         }
     }
 
+    let result = utils::expand_string_with_vars(&result, variables);
+
     result
 }
 
-pub fn handle_echo_command(command: &str) -> Output {
+pub fn handle_echo_command(command: &str, variables: &HashMap<String, String>) -> Output {
     let arguments = &command[(constants::ECHO_CMD.len() + 1)..];
     // Strip empty quote pairs before parsing
     let arguments = arguments.replace("\"\"", "").replace("''", "");
-    let mut stdout = parse_echo_args(&arguments).into_bytes();
+    let mut stdout = parse_echo_args(&arguments, variables).into_bytes();
     stdout.push(b'\n');
     ok_output(stdout)
 }

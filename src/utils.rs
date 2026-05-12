@@ -203,9 +203,17 @@ pub fn expand_args<'a, S>(args: Vec<S>, variables: &HashMap<String, String>) -> 
 where
     S: AsRef<str> + 'a,
 {
-    args.into_iter()
+    let expanded: Vec<String> = args
+        .into_iter()
         .map(|arg| expand_string_with_vars(arg.as_ref(), variables))
-        .collect()
+        .collect();
+    let mut return_vec: Vec<String> = Vec::new();
+    for arg in expanded {
+        if !arg.is_empty() {
+            return_vec.push(arg);
+        }
+    }
+    return_vec
 }
 
 fn expand_string(
@@ -242,8 +250,8 @@ fn expand_string(
                 if let Some(value) = variables.get(&key) {
                     // Check for cycles
                     if visited.contains(&key) {
-                        // Cycle detected, return the variable as-is to avoid infinite recursion
-                        result.push_str(&format!("${}", key));
+                        // Cycle detected, return empty to avoid infinite recursion
+                        // (or handle as you prefer)
                     } else {
                         visited.insert(key.clone());
                         let expanded = expand_string(value, variables, visited);
@@ -251,12 +259,8 @@ fn expand_string(
                         result.push_str(&expanded);
                     }
                 } else {
-                    // Variable not found, leave as-is
-                    if braced {
-                        result.push_str(&format!("${{{}}}", key));
-                    } else {
-                        result.push_str(&format!("${}", key));
-                    }
+                    // Variable not found: skip it entirely
+                    continue;
                 }
             } else {
                 // No key found, just push the '$'

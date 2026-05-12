@@ -94,6 +94,16 @@ fn get_command_args(args: &str, variables: &HashMap<String, String>) -> Vec<Stri
 
     // args
     utils::expand_args(args, variables)
+    // let args = utils::expand_args(args, variables);
+    // let mut return_args = Vec::new();
+    // for arg in args {
+    //     if !((arg.trim().starts_with("${") && arg.trim().ends_with("}"))
+    //         || (arg.trim().starts_with("$") && !arg.trim().starts_with("${")))
+    //     {
+    //         return_args.push(arg);
+    //     }
+    // }
+    // return_args
 }
 
 fn cleanup_name(name: &str) -> String {
